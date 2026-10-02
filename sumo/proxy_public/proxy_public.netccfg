@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 代理場景的路網建置設定：告訴 netconvert 要讀哪些檔、輸出到哪、號誌怎麼排。
+     建置指令（在專案根目錄）：python sumo/build_networks.py proxy_public -->
+<netconvertConfiguration>
+    <input>
+        <node-files value="nodes.nod.xml"/>
+        <edge-files value="edges.edg.xml"/>
+    </input>
+    <output>
+        <output-file value="proxy_public.net.xml"/>
+    </output>
+    <junctions>
+        <!-- 不允許迴轉：本專案不研究迴轉車，關掉可以少一種干擾 -->
+        <no-turnarounds value="true"/>
+    </junctions>
+</netconvertConfiguration>

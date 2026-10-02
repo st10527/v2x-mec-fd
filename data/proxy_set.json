@@ -1,0 +1,16 @@
+{
+  "shape": [
+    2000,
+    20,
+    8
+  ],
+  "sha256": "6e9a298e38905fa59b7ffc7538c951767bc88cd78900df6b1d1f48fc370cc705",
+  "source": "proxy.npz",
+  "sampling": "stratified",
+  "label_counts_before_drop": {
+    "safe": 668,
+    "caution": 666,
+    "danger": 666
+  },
+  "note": "只含特徵，不含標籤（SPEC §7.1）。兩端必須持有位元相同的副本。"
+}

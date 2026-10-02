@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 代理場景的節點：無號誌、優先權路口，刻意與 A、B 都不同（中性幾何） -->
+<nodes>
+    <node id="C" x="0"    y="0"    type="right_before_left"/>
+    <node id="N" x="0"    y="150"  type="priority"/>
+    <node id="S" x="0"    y="-150" type="priority"/>
+    <node id="E" x="150"  y="0"    type="priority"/>
+    <node id="W" x="-150" y="0"    type="priority"/>
+</nodes>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 路口 A 的節點：中央一個號誌路口 C，四個方向各一個端點，距路口 200 公尺 -->
+<nodes>
+    <node id="C" x="0"    y="0"    type="traffic_light"/>
+    <node id="N" x="0"    y="200"  type="priority"/>
+    <node id="S" x="0"    y="-200" type="priority"/>
+    <node id="E" x="200"  y="0"    type="priority"/>
+    <node id="W" x="-200" y="0"    type="priority"/>
+</nodes>

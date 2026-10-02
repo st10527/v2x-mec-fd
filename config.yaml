@@ -1,0 +1,258 @@
+# 多路口 V2X 協同危險預警系統 — 單一設定檔
+#
+# 唯一事實來源為 docs/SPEC.md。本檔案是 SPEC 中所有數值參數的機器可讀形式。
+# 規格書 §15.5：正規化參數兩端共用，寫在本檔，不得各自用自己的資料統計。
+#
+# 修改前請先確認 docs/SPEC.md 已同步更新（§0 的文件約束）。
+
+meta:
+  spec_version: "v1.1"
+  project: "v2x-mec-fd"
+
+# ---------------------------------------------------------------------------
+# SUMO 模擬（SPEC §4.2）
+# ---------------------------------------------------------------------------
+sumo:
+  version: "1.27.0"          # 教材環境版本，勿升級
+  step_length: 0.1           # s
+  min_sim_seconds: 3600      # 每個場景至少產生的模擬秒數
+  ssm:
+    measures: ["TTC", "PET", "DRAC"]
+    thresholds: [3.0, 2.0, 3.0]
+    trajectories: true
+  scenarios:
+    a:
+      dir: "sumo/intersection_a"
+      config: "intersection_a.sumocfg"
+      signalized: true
+    b:
+      dir: "sumo/intersection_b"
+      config: "intersection_b.sumocfg"
+      signalized: false
+    proxy:
+      dir: "sumo/proxy_public"
+      config: "proxy_public.sumocfg"
+      signalized: false
+    # 第二個公共場景（v1.4 試驗）：中性的號誌路口。公共資料取自多個路口、涵蓋號誌與無號誌兩種型態，
+    # 才像真實的公開資料集；與 A 刻意不同（單車道、40 km/h、週期 90 秒、中等流量）
+    proxy_signal:
+      dir: "sumo/proxy_signal"
+      config: "proxy_signal.sumocfg"
+      signalized: true
+
+# ---------------------------------------------------------------------------
+# 特徵與正規化（SPEC §5.2）
+# ---------------------------------------------------------------------------
+# 順序即模型輸入的通道順序，不得變動。
+# min/max 為固定值域，非資料統計值：兩個節點必須套用完全相同的參數，
+# 否則雙方 logits 落在不同輸入分布上，§7 的蒸餾不成立。
+#
+# [已驗收 115/09/24] 初值依都市路口常識設定，D7 以三個場景各 3600 秒的實測資料驗收
+# （截斷比例須 < 1%），調整了兩項，記錄於 SPEC §16 v1.4：
+#   ego_accel  [-8, 3]   -> [-10, 6]  SUMO 緊急煞車可達 -10 m/s²、機車加速可達 6 m/s²
+#   rel_speed  [-20, 20] -> [-20, 40] 左轉車橫越對向來車時，兩車接近速度可達 36 m/s，
+#                                     這是真實的高危險情境，不能靠截斷壓掉
+features:
+  order: [ego_speed, ego_accel, rel_dist, rel_speed,
+          heading_diff, same_lane, dist_to_stopline, signal_state]
+  dim: 8
+  clip_out_of_range: true    # 超出值域一律截斷至邊界，不可丟樣本
+  # 衝突對手判準（mec_app/features.py 檔頭註 (1)）：不同車道、且照目前方向開下去
+  # 未來 3 秒內最近距離大於此值的車，不視為威脅（對向錯車、隔壁車道並行）。
+  # 2.5 m ≈ 一台車寬 1.8 m 加裕度；雙向車道的車道中心距約 3.2~3.5 m，會被排除。
+  conflict_cpa_m: 2.5
+  norm:
+    ego_speed:        {min:   0.0, max:  25.0, unit: "m/s"}
+    ego_accel:        {min: -10.0, max:   6.0, unit: "m/s^2"}
+    rel_dist:         {min:   0.0, max: 100.0, unit: "m",
+                       note: "無衝突車輛時填 max（等效於無風險）"}
+    rel_speed:        {min: -20.0, max:  40.0, unit: "m/s",
+                       note: "接近為正"}
+    heading_diff:     {min:  -1.0, max:   1.0, unit: "normalized",
+                       note: "夾角先正規化至 [-1,1] 再線性映射至 [0,1]"}
+    same_lane:        {min:   0.0, max:   1.0, unit: "bool"}
+    dist_to_stopline: {min:   0.0, max: 100.0, unit: "m"}
+    signal_state:     {min:   0.0, max:   1.0, unit: "enum",
+                       note: "紅 0 / 黃 0.5 / 綠 1；無號誌路口固定 1"}
+
+# ---------------------------------------------------------------------------
+# 滑動視窗與標籤（SPEC §5.3、§5.4）
+# ---------------------------------------------------------------------------
+window:
+  steps: 20                  # 過去 2.0 s
+  seconds: 2.0
+  pad: "edge"                # 不足 20 步時以第一筆狀態向前填充
+
+label:
+  horizon_steps: 30          # 未來 3.0 s
+  horizon_seconds: 3.0
+  metric: "min(TTC, PET)"
+  classes: 3
+  names: {0: "safe", 1: "caution", 2: "danger"}
+  thresholds:
+    danger_lt: 1.5           # min(TTC,PET) < 1.5 s          -> 2
+    caution_lt: 3.0          # 1.5 <= min(TTC,PET) < 3.0 s   -> 1
+                             # 其他                           -> 0
+
+# ---------------------------------------------------------------------------
+# 資料集建構（SPEC §5.3、§6.2）
+# ---------------------------------------------------------------------------
+dataset:
+  out: "data/{scenario}.npz"
+  # 取樣間隔。SUMO 每 0.1 s 一筆，但相鄰兩個視窗有 19/20 的內容重疊，
+  # 逐步取樣只會把資料量灌大 5 倍而幾乎不增加資訊量。
+  # 每 0.5 s 取一個樣本：3600 s × 約 50 車 ≈ 36 萬筆，記憶體約 230 MB。
+  stride_steps: 5
+  max_samples: 400000        # 保險上限，超過時等距抽樣並在 log 記錄
+  min_vehicle_steps: 20      # 生命週期短於一個視窗的車輛直接跳過
+
+# ---------------------------------------------------------------------------
+# 模型（SPEC §6.1）
+# ---------------------------------------------------------------------------
+# 警告：不得改為兩層 MLP。理由見 SPEC §2 Q5 的設計警示——
+# 模型過小會使 FedAvg 傳輸量低於 logits，Q5 的論證反轉。
+model:
+  arch: "cnn1d"
+  input_shape: [20, 8]       # (steps, features)，送入 Conv1d 前轉置為 (8, 20)
+  conv: [{out: 32, kernel: 3, padding: 1},
+         {out: 64, kernel: 3, padding: 1}]
+  pool: 2                    # MaxPool1d -> (64, 10)
+  fc_hidden: 64
+  dropout: 0.3
+  num_classes: 3
+  param_count: 48419         # 已實測；SPEC §6.1 / §2 Q5 引用此值
+  fp32_bytes: 193676         # 189.1 KB
+
+# ---------------------------------------------------------------------------
+# 訓練（SPEC §6.2）
+# ---------------------------------------------------------------------------
+train:
+  loss: "cross_entropy"
+  class_weight: "inverse_frequency"
+  optimizer: "adam"
+  lr: 0.001
+  batch_size: 256
+  epochs_pretrain: 30        # round 0，單獨訓練基準
+  epochs_per_round: 5        # 每輪蒸餾前的本地訓練
+  epochs_distill: 5          # 每輪蒸餾更新
+  split: {train: 0.70, val: 0.15, test: 0.15}
+  split_mode: "temporal"     # 依時間切分，不得隨機切（避免相鄰時間步洩漏）
+  seed: 20260920
+  lr_round: 0.001            # 協同各輪的學習率（依據同上：1e-3 在新準則下優於 1e-4）
+  distill_threads: 2         # VM1 只有 4 核、兩節點同時蒸餾：各用 2 條，否則互搶會慢 30 倍以上
+
+# ---------------------------------------------------------------------------
+# 規則基準線（SPEC §6.3）— 對照組，必須實作
+# ---------------------------------------------------------------------------
+rule_baseline:
+  source: "平台範例 KevinTseng-0430/SUMO-V2X-TTC 的當下 TTC 門檻邏輯"
+  ttc_danger_lt: 1.5
+  ttc_caution_lt: 3.0
+
+# ---------------------------------------------------------------------------
+# 聯邦蒸餾（SPEC §7）
+# ---------------------------------------------------------------------------
+fd:
+  rounds: 5
+  # L = (1-a)*CE + a*T^2*KL。可為單一數值或 {a: .., b: ..}（非對稱：0 = 只提供、不吸收）。
+  # 依據：training/tune_fd.py select-events——兩段式警示準則下（SPEC §6.4）比較 9 組設定，
+  # 兩邊都協同 0.5 在「A 模型到 B 路口的誤報、強警報精準度」與「B 自己路口的誤報」都優於不協同（SPEC §7.3）
+  alpha: 0.5
+  temperature: 3.0
+  proxy:
+    n_samples: 2000
+    path: "data/proxy_set.npy"      # shape (2000, 20, 8)，僅特徵不含標籤
+    hash_algo: "sha256"             # 兩端副本須位元相同，hash 寫入 log
+    sampling: "stratified"          # natural = 隨機抽時段（自然比例）；stratified = 三類各 1/3。抽完即丟棄標籤
+  logits:
+    encoding: "float32-base64"
+    raw_bytes: 24000                # 2000 * 3 * 4
+    note: "base64 上線約 32,000 B；§8.3 作圖須標明採用何者"
+  # 輪次對齊：第 r 輪各自先發布自己的軟標籤，再向對方取「同一輪」的軟標籤。
+  # 兩節點每輪耗時不同（A 的資料量約 B 的 4 倍），不對齊的話快的一方會一直拿到對方的舊輪結果。
+  published: "models/{node}/logits_round_{round}.npy"
+  wait_peer_s: 1800                 # 等對方發布本輪軟標籤的上限
+  poll_s: 3.0
+  model_swap:
+    current: "models/{node}/current.pt"
+    round0: "models/{node}/round_0.pt"
+    atomic_rename: true             # 先寫 .tmp 再 os.replace
+
+# ---------------------------------------------------------------------------
+# 警告決策（實務取捨：漏報 vs 誤報）
+# ---------------------------------------------------------------------------
+decision:
+  # 兩段式警示（SPEC §6.4，training/events.py）。以「事件」為單位：一對車的一次危險。
+  caution_event_recall: 0.95       # 注意（溫和提示）：驗證資料上至少抓到 95% 的危險事件
+  danger_alert_precision: 0.5      # 危險（強烈警報）：喊兩次至少一次是真的，避免駕駛麻木而忽略
+  # ↓ 舊準則（逐筆成本），保留給 training/decision.py 與調參紀錄對照用
+  # 漏報一次的代價抵幾次誤報。漏報可能是一場事故；誤報讓駕駛分心，喊多了就不再理會警告。
+  # 沒有標準答案，training/tune_fd.py 同時檢查 3 / 10 / 30，選出的設定一致就不必爭論此值。
+  miss_cost_ratio: 10
+  # 危險機率 >= 門檻才喊「危險」。門檻跟著權重走：每產生一版模型，就用本路口驗證資料校準一次
+  # （training/decision.py），存於 models/{node}/thresholds.json。沒校準過的權重取機率最高的類別。
+
+# ---------------------------------------------------------------------------
+# 部署拓樸與路由（SPEC §3.1、§3.3）
+# ---------------------------------------------------------------------------
+network:
+  vm1: {role: "free5GC + OAI-MEP + MEC Apps", hostonly: "192.168.113.131"}
+  vm2: {role: "UERANSIM + SUMO + UE Client",  hostonly: "192.168.113.132"}
+  mec_bind: "172.16.6.10"           # MEC App 綁定位址
+  mep_gateway: "172.16.6.100"       # DNAT 對外入口
+  ue_tun: "uesimtun0"
+
+nodes:
+  a:
+    node_id: "A"
+    port: 5002
+    scenario: "a"
+    kong: {infer_service: "mec-v2x-a", infer_route: "/mec/v2x/a",
+           fd_service: "mec-fd-a",     fd_route: "/mec/fd/a"}
+  b:
+    node_id: "B"
+    port: 5003
+    scenario: "b"
+    kong: {infer_service: "mec-v2x-b", infer_route: "/mec/v2x/b",
+           fd_service: "mec-fd-b",     fd_route: "/mec/fd/b"}
+
+services:
+  dashboard: {port: 5010, kong_service: "mec-dash",   kong_route: "/mec/dash"}
+  health:    {port: 5000, kong_service: "mec-health", kong_route: "/mec/health"}
+
+registry:
+  # Discovery and Service Registry（ETSI GS MEC 011）
+  service_name_pattern: "fd-service-{node}"
+  # 降級順序見 SPEC §12：Registry -> Kong 固定路由 -> 共享 volume/Redis
+  fallback: "kong_static_route"
+  # [待確認 D13] OAI-MEP 的 Registry API 路徑依版本而異，須在 VM 上實測後填入，
+  # 並記錄於 docs/platform-notes.md §4。確認前保持 enabled: false，
+  # 系統以 kong_static 模式運作：功能完整，只是拿不到 Registry 的加分。
+  enabled: false
+  base_url: "http://172.16.6.100/mec_service_mgmt/v1"
+  api:
+    register: "/applications/{appInstanceId}/services"
+    discover: "/services"
+
+# ---------------------------------------------------------------------------
+# Log（SPEC §8.4）— JSON Lines，欄位固定，畫圖腳本只讀這三個檔
+# ---------------------------------------------------------------------------
+logs:
+  dir: "logs"
+  inference: {file: "inference_{node}.jsonl",
+              fields: [msg_id, ts_ue, ts_recv, ts_infer_done, ts_resp,
+                       vehicle_id, risk_pred, risk_rule, ttc_now]}
+  fd_rounds: {file: "fd_rounds.jsonl",
+              fields: [round, node, bytes_sent, local_f1, cross_f1, duration_s]}
+  events:    {file: "events.jsonl",
+              fields: [event_id, intersection, first_warn_model_t,
+                       first_warn_rule_t, label_t, lead_time]}
+  # [SPEC §8.4 待補] 第四個 log。SPEC §8.2 把 T4 定義為「產生回應 -> UE 收到」，
+  # 這一段只有 UE 端量得到，MEC 端的 inference log 在原理上放不進去；
+  # 同理 T2/T3 的分界（視窗就緒）也不在 §8.4 的欄位清單裡。
+  # 兩者都由 UE 端記錄：MEC App 在回應中帶回自己的三個時間戳，UE 補上收到時間。
+  # 確認後請更新 SPEC §8.4 與 §16。
+  ue:        {file: "ue_{node}.jsonl",
+              fields: [msg_id, vehicle_id, ts_ue, ts_ue_recv, t1_uplink_ms,
+                       t2_features_ms, t3_inference_ms, t4_downlink_ms,
+                       t_total_ms, risk_pred, risk_rule, ttc_now]}

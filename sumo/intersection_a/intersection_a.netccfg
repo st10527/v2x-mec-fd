@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 路口 A的路網建置設定：告訴 netconvert 要讀哪些檔、輸出到哪、號誌怎麼排。
+     建置指令（在專案根目錄）：python sumo/build_networks.py intersection_a -->
+<netconvertConfiguration>
+    <input>
+        <node-files value="nodes.nod.xml"/>
+        <edge-files value="edges.edg.xml"/>
+    </input>
+    <output>
+        <output-file value="intersection_a.net.xml"/>
+    </output>
+    <tls_building>
+        <!-- 號誌週期 60 秒（SPEC §4.3）。netconvert 會自動排出綠 / 黃 / 紅的時相 -->
+        <tls.cycle.time value="60"/>
+    </tls_building>
+    <junctions>
+        <!-- 不允許迴轉：本專案不研究迴轉車，關掉可以少一種干擾 -->
+        <no-turnarounds value="true"/>
+    </junctions>
+</netconvertConfiguration>

@@ -1,0 +1,17 @@
+# 學生端環境（只做 SUMO 場景、資料集、圖表，不需要 torch / fastapi）
+# 安裝：pip install -r requirements-student.txt
+#
+# SUMO 版本鎖定 1.27.0（SPEC §4.2：與教材環境一致，勿升級）。
+# eclipse-sumo 這個套件內含 sumo / sumo-gui / netconvert / netedit 執行檔，
+# Windows、macOS（Apple Silicon）、Linux 都能直接裝，不需要另外跑安裝精靈。
+eclipse-sumo==1.27.0
+# sumo-data 一定要跟著鎖 1.27.0。eclipse-sumo 1.27.0 宣告的相依是 sumo-data>=1.27.0，
+# pip 會自動裝最新的 1.27.1，但 1.27.0 的 netconvert / sumo-gui 需要 1.27.0 附帶的
+# 函式庫版本。實測 macOS 上不鎖會報 "Library not loaded: ... libgdal.39.3.13.0.dylib"，
+# netconvert 完全無法執行。Windows 也有專屬的 sumo-data wheel，視同有同樣風險。
+sumo-data==1.27.0
+traci==1.27.0
+sumolib==1.27.0
+numpy>=1.24
+pyyaml>=6.0
+matplotlib>=3.7

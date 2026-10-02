@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 路口 A的模擬設定：用哪個路網、哪些車流、跑多久、要量什麼。
+     看畫面：sumo-gui -c sumo/intersection_a/intersection_a.sumocfg
+     收資料：python -m training.build_dataset collect 加上場景代號（a、b 或 proxy）-->
+<sumoConfiguration>
+    <input>
+        <net-file value="intersection_a.net.xml"/>
+        <route-files value="traffic.rou.xml"/>
+    </input>
+
+    <time>
+        <begin value="0"/>
+        <!-- 跑到 3700 秒：收資料只取前 3600 秒（SPEC §4.2），多 100 秒讓最後的衝突記錄完整 -->
+        <end value="3700"/>
+        <!-- 每 0.1 秒算一步（SPEC §4.2）。不可改，模型輸入的 20 步 = 2 秒就是這樣來的 -->
+        <step-length value="0.1"/>
+    </time>
+
+    <processing>
+        <!-- 車輛相撞時只警告、不中止模擬 -->
+        <collision.action value="warn"/>
+        <!-- 卡住超過 300 秒的車會被移走，避免整個路口塞死 -->
+        <time-to-teleport value="300"/>
+    </processing>
+
+    <report>
+        <duration-log.statistics value="true"/>
+        <no-step-log value="true"/>
+    </report>
+
+    <!-- ======== SSM（替代安全指標）：本專案「標籤」的來源，絕對不能漏 ========
+         SUMO 會在每台車上裝一個 SSM 裝置，量它跟附近每台車的：
+           TTC   碰撞前時間：照目前速度開下去，幾秒後會撞上
+           PET   後侵入時間：前一台車離開衝突點後，幾秒後下一台車到達
+           DRAC  避免碰撞需要的減速度
+         訓練標籤就是「未來 3 秒內 min(TTC, PET)」（SPEC §5.4）。 -->
+    <ssm_device>
+        <device.ssm.probability value="1"/>              <!-- 每一台車都裝 -->
+        <device.ssm.measures value="TTC PET DRAC"/>
+        <device.ssm.thresholds value="3.0 2.0 3.0"/>     <!-- 低於這些值才算衝突，記下來 -->
+        <device.ssm.trajectories value="true"/>          <!-- 記錄每 0.1 秒的 TTC，標籤更準 -->
+        <device.ssm.range value="50"/>                   <!-- 偵測 50 公尺內的車 -->
+        <device.ssm.extratime value="5"/>
+        <device.ssm.mdrac.prt value="1"/>
+        <!-- 輸出成壓縮檔：路口 A 不壓縮會接近 900 MB，壓縮後約 120 MB -->
+        <device.ssm.file value="ssm.xml.gz"/>
+        <device.ssm.geo value="false"/>
+        <device.ssm.write-positions value="false"/>
+        <device.ssm.write-lane-positions value="false"/>
+        <device.ssm.exclude-conflict-types value="none"/>
+    </ssm_device>
+</sumoConfiguration>

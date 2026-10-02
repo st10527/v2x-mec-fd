@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 路口 B 的道路：全部單車道。priority 數字大的是主線，小的是次要道路（要讓主線）。
+     車道寬 3.5 公尺：比預設的 3.2 寬一點，讓機車有空間在車道內側向鑽行 -->
+<edges>
+    <edge id="W2C" from="W" to="C" numLanes="1" speed="13.89" priority="2" width="3.5"/>
+    <edge id="C2W" from="C" to="W" numLanes="1" speed="13.89" priority="2" width="3.5"/>
+    <edge id="E2C" from="E" to="C" numLanes="1" speed="13.89" priority="2" width="3.5"/>
+    <edge id="C2E" from="C" to="E" numLanes="1" speed="13.89" priority="2" width="3.5"/>
+    <edge id="S2C" from="S" to="C" numLanes="1" speed="11.11" priority="1" width="3.5"/>
+    <edge id="C2S" from="C" to="S" numLanes="1" speed="11.11" priority="1" width="3.5"/>
+</edges>

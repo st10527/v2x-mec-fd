@@ -1,0 +1,107 @@
+{
+  "scenario": "b",
+  "out": "data/b.npz",
+  "n_samples": 100931,
+  "class_counts": [
+    86569,
+    11363,
+    2999
+  ],
+  "class_pct": [
+    85.77,
+    11.258,
+    2.971
+  ],
+  "sim_time_range": [
+    0.10000000149011612,
+    3599.800048828125
+  ],
+  "n_vehicles": 1500,
+  "skipped_short_lived": 0,
+  "total_states": 501679,
+  "stride_steps": 5,
+  "subsampled": false,
+  "seconds_per_sample": 0.5,
+  "feature_ranges": {
+    "ego_speed": {
+      "config_min": 0.0,
+      "config_max": 25.0,
+      "actual_min": 0.0,
+      "actual_max": 21.402999877929688,
+      "p01": 0.0,
+      "p99": 17.26099967956543,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "ego_accel": {
+      "config_min": -10.0,
+      "config_max": 6.0,
+      "actual_min": -10.0,
+      "actual_max": 3.5,
+      "p01": -5.713700294494629,
+      "p99": 3.0577001571655273,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "rel_dist": {
+      "config_min": 0.0,
+      "config_max": 100.0,
+      "actual_min": 1.1166006326675415,
+      "actual_max": 100.0,
+      "p01": 4.268979072570801,
+      "p99": 100.0,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "rel_speed": {
+      "config_min": -20.0,
+      "config_max": 40.0,
+      "actual_min": -11.595609664916992,
+      "actual_max": 36.63346481323242,
+      "p01": -5.842700004577637,
+      "p99": 28.501325607299805,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "heading_diff": {
+      "config_min": -1.0,
+      "config_max": 1.0,
+      "actual_min": -1.0,
+      "actual_max": 1.0,
+      "p01": -1.0,
+      "p99": 1.0,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "same_lane": {
+      "config_min": 0.0,
+      "config_max": 1.0,
+      "actual_min": 0.0,
+      "actual_max": 1.0,
+      "p01": 0.0,
+      "p99": 1.0,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "dist_to_stopline": {
+      "config_min": 0.0,
+      "config_max": 100.0,
+      "actual_min": 0.0010000000474974513,
+      "actual_max": 100.0,
+      "p01": 0.10100000351667404,
+      "p99": 100.0,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    },
+    "signal_state": {
+      "config_min": 0.0,
+      "config_max": 1.0,
+      "actual_min": 1.0,
+      "actual_max": 1.0,
+      "p01": 1.0,
+      "p99": 1.0,
+      "clipped": 0,
+      "clipped_pct": 0.0
+    }
+  }
+}

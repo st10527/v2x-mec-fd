@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 路口 B 的車種與車流（SPEC §4.3：小客車 60%、機車 40%；每方向 500 輛/小時）
+
+     路口 B 要讓「側向衝突」（匯入、交叉）成為主要危險型態，所以：
+       impatience        等太久會不耐煩、硬擠進去，0~1，越大越冒險  （預設 0）
+       jmTimegapMinor    次要道路車願意接受的最小間隙（秒），越小越敢切（預設 1）
+       lcSublane         機車在車道內側向移動的積極度                 （預設 1）
+     主線車的 tau 設大一點、minGap 拉開，避免追撞變成主要型態（SPEC 要求追撞 < 10%） -->
+<routes>
+    <!-- 主線車（東西向直行與轉入支道）：跟車保守，讓「追撞」不要變成主要型態。
+         SPEC §4.3 要求路口 B 的危險樣本中追撞 < 10%。 -->
+    <vTypeDistribution id="mixB_main">
+        <vType id="carB_main"  vClass="passenger"  probability="0.6"
+               accel="2.6" decel="4.5" sigma="0.4" tau="1.5" minGap="4.0"
+               speedFactor="normc(1.00,0.10,0.80,1.20)"/>
+        <vType id="motoB_main" vClass="motorcycle" probability="0.4"
+               accel="3.5" decel="6.0" sigma="0.5" tau="1.3" minGap="2.5"
+               latAlignment="arbitrary" lcSublane="2.0" minGapLat="0.4"
+               speedFactor="normc(1.05,0.10,0.80,1.30)"/>
+    </vTypeDistribution>
+
+    <!-- 支道車（從南方匯入主線）：在「路口」冒進，但「跟車」保守。
+         這兩件事在 SUMO 是分開的兩組參數：
+           路口行為（jm 開頭、impatience）→ 設得冒進，製造匯入 / 交叉衝突
+           跟車行為（tau、minGap、sigma） → 設得保守，避免支道排隊時互撞
+         實測（600 秒）：兩組都設冒進時，危險追撞有 30%，全是支道上排隊的車
+         一前一後撞上（S_left × S_right），不合格；拆開調之後才壓下來。
+           impatience        等太久會硬擠進去，0~1，越大越冒險
+           jmTimegapMinor    願意接受的主線車間隙（秒），越小越敢切
+           jmIgnoreFoeProb   有多少機率「沒看到」主線來車                 （模擬分心）
+           jmIgnoreFoeSpeed  主線車速低於此值（m/s）時才可能被忽略
+           lcSublane         機車在車道內側向鑽行的積極度                  -->
+    <vTypeDistribution id="mixB_minor">
+        <vType id="carB_minor"  vClass="passenger"  probability="0.6"
+               accel="2.6" decel="4.5" sigma="0.5" tau="1.4" minGap="3.0"
+               impatience="0.9" jmTimegapMinor="0.3"
+               jmIgnoreFoeProb="0.3" jmIgnoreFoeSpeed="10"
+               speedFactor="normc(1.05,0.10,0.80,1.30)"/>
+        <vType id="motoB_minor" vClass="motorcycle" probability="0.4"
+               accel="3.5" decel="6.0" sigma="0.6" tau="1.2" minGap="2.0"
+               impatience="1.0" jmTimegapMinor="0.2"
+               jmIgnoreFoeProb="0.4" jmIgnoreFoeSpeed="12"
+               latAlignment="arbitrary" lcSublane="3.0" minGapLat="0.3"
+               speedFactor="normc(1.15,0.15,0.80,1.60)"/>
+    </vTypeDistribution>
+
+    <!-- 每個入口 500 輛/小時（SPEC §4.3） -->
+    <!-- 從西方進來（主線，往東開）：直行 400、右轉進支道 100 -->
+    <flow id="W_straight" type="mixB_main"  from="W2C" to="C2E" begin="0" end="3700" vehsPerHour="400" departSpeed="max"/>
+    <flow id="W_right"    type="mixB_main"  from="W2C" to="C2S" begin="0" end="3700" vehsPerHour="100" departSpeed="max"/>
+    <!-- 從東方進來（主線，往西開）：直行 400、左轉進支道 100 -->
+    <flow id="E_straight" type="mixB_main"  from="E2C" to="C2W" begin="0" end="3700" vehsPerHour="400" departSpeed="max"/>
+    <flow id="E_left"     type="mixB_main"  from="E2C" to="C2S" begin="0" end="3700" vehsPerHour="100" departSpeed="max"/>
+    <!-- 從南方進來（支道，匯入主線）：左轉 250、右轉 250 -->
+    <flow id="S_left"     type="mixB_minor" from="S2C" to="C2W" begin="0" end="3700" vehsPerHour="250" departSpeed="max"/>
+    <flow id="S_right"    type="mixB_minor" from="S2C" to="C2E" begin="0" end="3700" vehsPerHour="250" departSpeed="max"/>
+</routes>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 路口 B 的節點：T 字路口。東西向是主線，南方是次要道路從下方匯入。
+     中央節點 type="priority_stop"：次要道路必須停車再讓（對應 SPEC §4.3 的「停讓標線」） -->
+<nodes>
+    <node id="C" x="0"    y="0"    type="priority_stop"/>
+    <node id="W" x="-200" y="0"    type="priority"/>
+    <node id="E" x="200"  y="0"    type="priority"/>
+    <node id="S" x="0"    y="-200" type="priority"/>
+</nodes>

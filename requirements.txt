@@ -1,0 +1,16 @@
+# MEC App
+fastapi>=0.110
+uvicorn[standard]>=0.29
+httpx>=0.27
+pyyaml>=6.0
+
+# 模型與資料
+torch>=2.0
+numpy>=1.24
+
+# 評估指標以 numpy 自行實作（training/metrics.py），不依賴 scikit-learn
+
+# 分析與繪圖
+matplotlib>=3.7
+
+# SUMO 的 traci / sumolib 隨 SUMO 1.27.0 安裝提供，不由 pip 管理

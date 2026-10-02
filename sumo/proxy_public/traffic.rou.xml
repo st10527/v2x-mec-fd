@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 代理場景的車流：三種車混合、各種轉向都有，目的是讓「安全 / 注意 / 危險」
+     三種樣本都出現，而不是模仿任何一個真實路口（SPEC §7.1） -->
+<routes>
+    <vTypeDistribution id="mixP">
+        <vType id="carP"   vClass="passenger"  probability="0.7" sigma="0.7" tau="0.7" minGap="1.8" impatience="0.4" speedFactor="normc(1.10,0.10,0.80,1.40)"/>
+        <vType id="truckP" vClass="truck"      probability="0.1" sigma="0.6" tau="0.9" minGap="2.2" speedFactor="normc(1.00,0.10,0.80,1.20)"/>
+        <vType id="motoP"  vClass="motorcycle" probability="0.2" sigma="0.8" tau="0.7" minGap="1.2" impatience="0.6" speedFactor="normc(1.10,0.15,0.80,1.50)"/>
+    </vTypeDistribution>
+    <flow id="N_straight" type="mixP" from="N2C" to="C2S" begin="0" end="3700" vehsPerHour="250" departSpeed="max"/>
+    <flow id="N_turn"     type="mixP" from="N2C" to="C2E" begin="0" end="3700" vehsPerHour="100" departSpeed="max"/>
+    <flow id="S_straight" type="mixP" from="S2C" to="C2N" begin="0" end="3700" vehsPerHour="250" departSpeed="max"/>
+    <flow id="S_turn"     type="mixP" from="S2C" to="C2W" begin="0" end="3700" vehsPerHour="100" departSpeed="max"/>
+    <flow id="E_straight" type="mixP" from="E2C" to="C2W" begin="0" end="3700" vehsPerHour="250" departSpeed="max"/>
+    <flow id="E_turn"     type="mixP" from="E2C" to="C2N" begin="0" end="3700" vehsPerHour="100" departSpeed="max"/>
+    <flow id="W_straight" type="mixP" from="W2C" to="C2E" begin="0" end="3700" vehsPerHour="250" departSpeed="max"/>
+    <flow id="W_turn"     type="mixP" from="W2C" to="C2S" begin="0" end="3700" vehsPerHour="100" departSpeed="max"/>
+</routes>

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 實驗產出：log 與圖表由腳本重現，不入版控（樣本另外挑選加入）
+logs/*.jsonl
+figures/*.png
+figures/*.pdf
+
+# 模型權重（round_0.pt 為單獨訓練基準，決賽繳交時另行打包）
+models/**/*.pt
+models/**/*.tmp
+
+# 資料集
+data/*.npy
+data/*.npz
+
+# SUMO 輸出（場景原始檔與 stoplines.json 要進版控；以下都能從場景檔重新產生）
+sumo/**/*.out.xml
+sumo/**/*.ssm.xml
+sumo/**/*.fcd.xml
+sumo/**/*.net.xml
+sumo/**/ssm.xml
+sumo/**/ssm.xml.gz
+sumo/**/states.jsonl.gz
+sumo/**/run.log
+
+# 學生交付用的打包檔
+delivery_*.zip
+
+# macOS
+.DS_Store
