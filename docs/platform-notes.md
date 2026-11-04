@@ -476,6 +476,14 @@ A 是飽和路口，排隊車彼此都在 50 m 偵測範圍內，相遇數隨車
 | 115/09/24 | macOS 上 `sumo-gui` 報 `unable to open display :0.0` | SUMO 的 GUI 是 X11 程式（連結 libX11），macOS 不帶 X server | 裝 XQuartz 並登出再登入。**只影響看畫面**，收集與驗收都不需要 GUI |
 | 115/09/24 | SUMO 拒絕讀 sumocfg：`not well-formed (invalid token)` | 在 XML 註解裡寫了 `--scenario`。**XML 規格禁止註解內出現 `--`** | 改寫註解；`tests/test_student_guide.py` 會掃描手冊中所有場景檔防止再犯 |
 | 115/09/24 | `pkill -f "pip install"` 把自己的 shell 也殺掉 | pattern 出現在執行 pkill 的那個 ssh 指令字串裡，自己也被比對到 | 用 `pkill -f "[p]ip install"` 的字元類技巧避開自我比對 |
+| 115/10/12 | 實體主機重灌為 Ubuntu 26.04 後重建：上游 cloud image 下載只有約 200 B/s | cloud-images.ubuntu.com 對校內連線極慢 | 改用國網中心鏡像（`free.nchc.org.tw/ubuntu-cloud-images/...`，約 18 MB/s），與上游 SHA256SUMS 比對一致後以 `IMG_URL=file://...` 交給 `provision_vms.sh` |
+| 115/10/12 | PyPI 單一連線只有約 100 KB/s，`eclipse-sumo` 145 MB 要等 25 分鐘 | 校內到 PyPI CDN 的單連線速度受限，多連線可疊加 | torch 改走 `download.pytorch.org/whl/cpu`（約 28 MB/s，且避免誤裝 CUDA 版）；SUMO wheel 以多連線 Range 下載並比對 PyPI sha256，**先 `pip install ~/wheels/*.whl`** 再裝其餘——只給 `--find-links` 時 pip 仍會選 index 上的同名檔重抓 |
+| 115/10/12 | `setup_vm1.sh` 的 §7 在 `.venv` 不存在時以預設 index 裝 `requirements.txt`，torch 會拉 CUDA 版（數 GB） | 預設 PyPI 的 Linux torch 是 CUDA 版 | 先依上一列建好 CPU 版 `.venv` 再跑 `setup_vm1.sh` |
+| 115/10/12 | `setup_vm1.sh` 報 `~/gtp5g 不存在` | `install_gtp5g.sh` 把原始碼放在 `~/src/gtp5g`，教材假設 `~/gtp5g` | `ln -s ~/src/gtp5g ~/gtp5g`（模組本身已載入，只是路徑檢查） |
+| 115/11/04 | MEC App 從 10/13 起停了三週沒人發現；Kong 卡在 `Restarting` 迴圈 | VM 10/13 重開機過：MEC App 是 `run_all.sh` 以 nohup 起的，不會回來；Kong 非正常關機留下 `/usr/local/kong/worker_events.sock`，重啟同一容器時 `bind() ... Address in use`；DNAT 規則不跨重開機保存 | MEC App 改為 systemd 服務 `mec-app-a/b`；新增 `deploy/vm1_boot.sh`＋`v2x-vm1-boot.service`：開機時 `compose up --force-recreate`（新容器沒有殘留 socket，設定在 postgres 不受影響）、重設 DNAT、補 Kong 路由 |
+| 115/11/04 | `oai-mep-registry` 第二次開機起都 `Exited (1)` | 上游啟動時一律「新建」Kong 的 `service_registry` 服務，已存在回 409 就退出 | `vm1_boot.sh` 先刪舊的 routes 與 service 再啟動它 |
+| 115/11/04 | 重開機後 free5GC 停在 `inactive (dead)` | VM 被 unattended-upgrades 換成新核心，第一次開機時 gtp5g 模組還沒就緒，UPF 報 `open Gtp5g: operation not supported`；啟動器在 NF 結束時 `exit 0`，systemd 的 `Restart=on-failure` 當成正常結束而不重試 | 啟動器改為 NF 結束時 `exit 1`；兩台 VM 以 `apt-mark hold` 鎖定核心套件到決賽後 |
+| 115/11/04 | 兩台 VM 一起開機後 UE 一直 `Cell selection failure`（cell barred） | gNB 比 VM1 的 AMF 早起來，SCTP 被拒後 UERANSIM gNB **不重試**，行程也不結束，systemd 管不到 | 新增 `deploy/ue_watchdog.sh`＋`ueransim-watchdog.timer`：每 30 秒檢查 `uesimtun0`，沒有就重啟 gNB／UE。實測兩台同時重開機 109 秒恢復可展示 |
 | _待填_ | | | |
 
 卡關且自行無解時，平台團隊聯絡窗口：bytseng@smail.nchu.edu.tw（SPEC §12）。

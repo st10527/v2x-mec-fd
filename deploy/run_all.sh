@@ -20,6 +20,11 @@ mkdir -p "$PID_DIR" "${ROOT}/logs"
 
 start_node() {
   local node="$1" port="$2"
+  # 已裝成 systemd 服務（deploy/install_services.sh）時交給 systemd，避免兩份搶同一個 port
+  if systemctl cat "mec-app-${node}.service" >/dev/null 2>&1; then
+    sudo systemctl start "mec-app-${node}"
+    echo "  節點 ${node^^}：systemd mec-app-${node} $(systemctl is-active "mec-app-${node}")"; return
+  fi
   local pid_file="${PID_DIR}/mec_${node}.pid"
   if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
     echo "  節點 ${node^^} 已在執行（pid $(cat "$pid_file")）"; return
@@ -33,6 +38,10 @@ start_node() {
 
 case "${1:-start}" in
   --stop)
+    for node in a b; do
+      systemctl cat "mec-app-${node}.service" >/dev/null 2>&1 && sudo systemctl stop "mec-app-${node}" \
+        && echo "  已停止 systemd mec-app-${node}"
+    done
     for f in "$PID_DIR"/*.pid; do
       [[ -e "$f" ]] || continue
       pid=$(cat "$f"); kill "$pid" 2>/dev/null && echo "  已停止 pid $pid"

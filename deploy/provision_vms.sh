@@ -30,7 +30,10 @@ set -euo pipefail
 # 參數（對齊教材 p.28-33 與 SPEC §3.1）
 # ---------------------------------------------------------------------------
 VM_USER="${VM_USER:-v2x}"
-IMG_URL="https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+# 上游偶爾極慢（115/10/12 實測只有約 200 B/s）。可改用國網中心鏡像，或先下載好再以 file:// 指定：
+#   IMG_URL=http://free.nchc.org.tw/ubuntu-cloud-images/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img
+# 不論來源，都請先與上游 SHA256SUMS 比對。
+IMG_URL="${IMG_URL:-https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img}"
 POOL="/var/lib/libvirt/images"
 BASE="${POOL}/jammy-base.img"
 
@@ -145,8 +148,11 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 else
   ok "套件已齊全"
 fi
-systemctl enable --now libvirtd >/dev/null 2>&1 || true
-systemctl is-active --quiet libvirtd && ok "libvirtd 執行中" || die "libvirtd 未啟動"
+# 較新的發行版（如 Ubuntu 26.04）改用模組化 daemon（virtqemud / virtnetworkd），
+# 可能沒有單體的 libvirtd；兩種都試，最後以 virsh 實際連得上為準。
+systemctl enable --now libvirtd >/dev/null 2>&1 || \
+  systemctl enable --now virtqemud.socket virtnetworkd.socket virtstoraged.socket >/dev/null 2>&1 || true
+virsh version >/dev/null 2>&1 && ok "libvirt 可用" || die "libvirt 未啟動"
 for g in libvirt kvm; do
   getent group "$g" >/dev/null && usermod -aG "$g" "$CALLER" || true
 done

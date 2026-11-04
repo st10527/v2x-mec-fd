@@ -27,7 +27,8 @@ mkdir -p "$LOG_DIR"
 PIDS=()
 
 cleanup() {
-  echo "[..] 收到停止訊號，關閉所有 NF"
+  local rc="${1:-0}"
+  echo "[..] 關閉所有 NF"
   for p in "${PIDS[@]}"; do kill -TERM "$p" 2>/dev/null || true; done
   sleep 2
   for p in "${PIDS[@]}"; do kill -KILL "$p" 2>/dev/null || true; done
@@ -35,9 +36,9 @@ cleanup() {
   pkill -KILL -f './bin/upf' 2>/dev/null || true
   # 順手移除 gtp5g 的 link，否則下次啟動 UPF 會報 "file exists"
   ip link del upfgtp 2>/dev/null || true
-  exit 0
+  exit "$rc"
 }
-trap cleanup TERM INT
+trap 'cleanup 0' TERM INT
 
 # 清掉上一輪殘留。這兩步都是重啟時必踩的坑：
 #
@@ -73,4 +74,6 @@ echo "[OK] 已啟動 ${#PIDS[@]} 個行程，log 位於 ${LOG_DIR}"
 # 半死不活的核網比整組重啟難查得多。
 wait -n "${PIDS[@]}"
 echo "[WARN] 有 NF 結束，關閉其餘行程"
-cleanup
+# 回傳非 0：systemd 的 Restart=on-failure 才會重試。原本回傳 0，systemd 當成正常結束就不再啟動——
+# 115/11/04 實測：VM 換核心後第一次開機，gtp5g 模組尚未就緒，UPF 起不來，核網就此停在 inactive。
+cleanup 1

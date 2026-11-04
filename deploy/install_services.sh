@@ -29,8 +29,8 @@ case "${1:-}" in
      esac ;;
 esac
 
-vm1_units() { echo "free5gc"; }
-vm2_units() { echo "ueransim-gnb ueransim-ue"; }
+vm1_units() { echo "free5gc mec-app-a mec-app-b v2x-vm1-boot"; }
+vm2_units() { echo "ueransim-gnb ueransim-ue ueransim-watchdog.timer"; }
 units() { [[ "$ROLE" == "vm1" ]] && vm1_units || vm2_units; }
 
 case "${1:-install}" in
@@ -89,6 +89,63 @@ EOF
   sudo systemctl restart free5gc
   ok "free5gc 已啟動"
 
+  # MEC App A／B 也交給 systemd：原本以 run_all.sh 的 nohup 啟動，115/10/13 曾無故停止
+  # 三週沒人發現；遠端展示時沒人在主機旁，必須開機自動起來、掛掉自動重啟。
+  # 綁定 N6 位址（v2x-n6-addr.service 掛在 lo 上），故排在它之後。
+  PY="${ROOT}/.venv/bin/python"
+  [[ -x "$PY" ]] || die "找不到 ${PY}，請先建立 .venv"
+  for pair in a:5002 b:5003; do
+    node="${pair%%:*}"; port="${pair##*:}"
+    sudo tee "/etc/systemd/system/mec-app-${node}.service" >/dev/null <<EOF
+[Unit]
+Description=MEC App node ${node^^} (SPEC 3.1 VM1)
+After=network-online.target v2x-n6-addr.service
+Wants=network-online.target v2x-n6-addr.service
+
+[Service]
+Type=simple
+User=$(id -un)
+WorkingDirectory=${ROOT}
+Environment=MEC_NODE=${node}
+ExecStart=${PY} -m uvicorn mec_app.app:app --host 172.16.6.10 --port ${port} --log-level info
+StandardOutput=append:${ROOT}/logs/mec_${node}.out
+StandardError=append:${ROOT}/logs/mec_${node}.out
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  done
+  ok "已寫入 mec-app-a.service 與 mec-app-b.service"
+
+  # 開機還原：重建 OAI-MEP 容器、DNAT、Kong 路由（理由見 deploy/vm1_boot.sh 檔頭）
+  sudo tee /etc/systemd/system/v2x-vm1-boot.service >/dev/null <<EOF
+[Unit]
+Description=V2X VM1 boot restore (OAI-MEP, DNAT, Kong routes)
+After=network-online.target docker.service free5gc.service v2x-n6-addr.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=$(id -un)
+WorkingDirectory=${ROOT}
+ExecStart=/bin/bash ${ROOT}/deploy/vm1_boot.sh
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  ok "已寫入 v2x-vm1-boot.service"
+  bash "${ROOT}/deploy/run_all.sh" --stop >/dev/null 2>&1 || true   # 收掉 nohup 起的舊行程
+  sudo systemctl daemon-reload
+  sudo systemctl enable mec-app-a mec-app-b v2x-vm1-boot >/dev/null 2>&1 || true
+  sudo systemctl restart mec-app-a mec-app-b
+  ok "MEC App A／B 已啟動"
+  sudo systemctl restart v2x-vm1-boot
+  ok "開機還原已執行（OAI-MEP、DNAT、Kong 路由）"
+
 else
   U="${HOME}/UERANSIM"
   [[ -x "${U}/build/nr-gnb" ]] || die "找不到 ${U}/build/nr-gnb"
@@ -129,8 +186,32 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
   ok "已寫入 ueransim-gnb.service 與 ueransim-ue.service"
+
+  # 看門狗：UE 沒上線就重啟 gNB／UE（理由見 deploy/ue_watchdog.sh 檔頭）
+  sudo install -m 755 "${ROOT}/deploy/ue_watchdog.sh" /usr/local/bin/ue-watchdog
+  sudo tee /etc/systemd/system/ueransim-watchdog.service >/dev/null <<EOF
+[Unit]
+Description=UERANSIM watchdog: restart gNB/UE when uesimtun0 is missing
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ue-watchdog
+EOF
+  sudo tee /etc/systemd/system/ueransim-watchdog.timer >/dev/null <<EOF
+[Unit]
+Description=Run UERANSIM watchdog every 30 s
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=30
+
+[Install]
+WantedBy=timers.target
+EOF
+  ok "已寫入 ueransim-watchdog（每 30 秒檢查 UE 是否上線）"
   sudo systemctl daemon-reload
   sudo systemctl enable ueransim-gnb ueransim-ue >/dev/null 2>&1 || true
+  sudo systemctl enable --now ueransim-watchdog.timer >/dev/null 2>&1 || true
   sudo pkill -f 'nr-gnb|nr-ue' 2>/dev/null || true
   sleep 2
   sudo systemctl restart ueransim-gnb
