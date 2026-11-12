@@ -152,8 +152,6 @@ def iter_traci(scenario: str, cfg: dict, inter: str):
     scen = cfg["sumo"]["scenarios"][scenario]
     sumocfg = config.path(scen["dir"], scen["config"])
     binary = _sumo_binary()
-    if sys.stdout.isatty() and binary == "sumo":
-        binary = "sumo-gui"
     traci.start([binary, "-c", str(sumocfg),
                  "--step-length", str(cfg["sumo"]["step_length"])])
     try:
