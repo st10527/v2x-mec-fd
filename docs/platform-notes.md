@@ -484,6 +484,7 @@ A 是飽和路口，排隊車彼此都在 50 m 偵測範圍內，相遇數隨車
 | 115/11/04 | `oai-mep-registry` 第二次開機起都 `Exited (1)` | 上游啟動時一律「新建」Kong 的 `service_registry` 服務，已存在回 409 就退出 | `vm1_boot.sh` 先刪舊的 routes 與 service 再啟動它 |
 | 115/11/04 | 重開機後 free5GC 停在 `inactive (dead)` | VM 被 unattended-upgrades 換成新核心，第一次開機時 gtp5g 模組還沒就緒，UPF 報 `open Gtp5g: operation not supported`；啟動器在 NF 結束時 `exit 0`，systemd 的 `Restart=on-failure` 當成正常結束而不重試 | 啟動器改為 NF 結束時 `exit 1`；兩台 VM 以 `apt-mark hold` 鎖定核心套件到決賽後 |
 | 115/11/04 | 兩台 VM 一起開機後 UE 一直 `Cell selection failure`（cell barred） | gNB 比 VM1 的 AMF 早起來，SCTP 被拒後 UERANSIM gNB **不重試**，行程也不結束，systemd 管不到 | 新增 `deploy/ue_watchdog.sh`＋`ueransim-watchdog.timer`：每 30 秒檢查 `uesimtun0`，沒有就重啟 gNB／UE。實測兩台同時重開機 109 秒恢復可展示 |
+| 115/11/12 | 學生回報 UE 經 `uesimtun0` 連 MEC 逾時；VM2 的 gNB 一個 GTP-U 封包都沒送出，UE 卻仍有 `uesimtun0`／10.60.0.x | 11/04 對 VM 做快照時 VM 暫停數秒，UE 與 gNB 間的模擬無線連線 `Radio link failure`，UE 退回 CM-IDLE；介面與 IP 仍在，看門狗只檢查介面所以沒發現，資料面斷了 8 天 | 看門狗改為經 `uesimtun0` 實際 ping VM1 的 N6 位址（172.16.6.10），不通就重啟 gNB／UE；以暫停 gNB 行程模擬，看門狗在下一輪（≤ 30 秒）偵測並恢復。**做完快照後務必確認經 5G 仍可通** |
 | _待填_ | | | |
 
 卡關且自行無解時，平台團隊聯絡窗口：bytseng@smail.nchu.edu.tw（SPEC §12）。
