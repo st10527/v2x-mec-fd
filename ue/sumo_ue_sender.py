@@ -28,6 +28,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import gzip
 import json
 import pathlib
@@ -177,6 +178,10 @@ def main(argv=None) -> int:
     ap.add_argument("--realtime", action="store_true",
                     help="重播時依 step-length 放慢到真實時間")
     ap.add_argument("--limit", type=int, default=None, help="只送前 N 筆")
+    ap.add_argument("--from-time", type=float, default=None,
+                    help="從模擬時間第 N 秒開始送（之前的略過）。模擬剛開始的幾秒路口幾乎沒車、"
+                         "沒有危險，只送開頭會看到全部是 0；要看到警示請從危險較多的時段開始，"
+                         "例如路口 B 的測試時段 --from-time 3068。每台車要先累積 2 秒資料才會推論")
     ap.add_argument("--timeout", type=float, default=5.0)
     ap.add_argument("--out", default=None,
                     help="UE 端延遲 log 路徑，預設 logs/ue_{路口}.jsonl")
@@ -195,11 +200,14 @@ def main(argv=None) -> int:
 
     print(f"路口 {inter} -> {url}\n延遲 log -> {out}")
     sent, errors, lat = 0, 0, []
+    pred_cnt, rule_cnt = Counter(), Counter()
     client = build_client(a.interface, a.timeout)
     t_start = time.time()
     try:
         with client, open(out, "a", encoding="utf-8") as fh:
             for sim_t, batch in source:
+                if a.from_time is not None and sim_t < a.from_time:
+                    continue
                 for rec in batch:
                     rec.setdefault("intersection", inter)
                     res = send_one(client, url, rec)
@@ -211,6 +219,8 @@ def main(argv=None) -> int:
                             print(f"  送出失敗：{res['error']}")
                     else:
                         lat.append(res["t_total_ms"])
+                        pred_cnt[res.get("risk_pred")] += 1
+                        rule_cnt[res.get("risk_rule")] += 1
                     if a.limit and sent >= a.limit:
                         raise StopIteration
     except (KeyboardInterrupt, StopIteration):
@@ -224,6 +234,10 @@ def main(argv=None) -> int:
         p95 = arr[min(len(arr) - 1, int(len(arr) * 0.95))]
         print(f"端到端延遲 T_total：中位數 {p50:.2f} ms、p95 {p95:.2f} ms、"
               f"最大 {arr[-1]:.2f} ms")
+        names = {0: "安全", 1: "注意", 2: "危險", None: "未判定"}
+        fmt = lambda c: "、".join(f"{names.get(k, k)} {c[k]:,}" for k in sorted(c, key=lambda k: (k is None, k)))
+        print(f"模型判定 risk_pred：{fmt(pred_cnt)}")
+        print(f"平台規則 risk_rule：{fmt(rule_cnt)}")
     return 0 if errors == 0 else 1
 
 
