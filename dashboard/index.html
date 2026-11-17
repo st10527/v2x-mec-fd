@@ -1,0 +1,657 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V2X 智慧路口監控中心</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #0b1220;
+      color: #edf4ff;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+    }
+
+    header {
+      padding: 24px 32px;
+      background: #121e32;
+      border-bottom: 1px solid #293b55;
+    }
+
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    h2 { margin-top: 0; font-size: 19px; }
+    p { color: #a9bdd5; }
+
+    main {
+      max-width: 1400px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #152238;
+      border: 1px solid #30435d;
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: #35445a;
+      color: #dce7f5;
+      font-weight: bold;
+    }
+
+    .road {
+      position: relative;
+      height: 230px;
+      background: #243346;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 18px 0;
+    }
+
+    .horizontal {
+      position: absolute;
+      top: 88px;
+      width: 100%;
+      height: 54px;
+      background: #394b61;
+      border-top: 2px dashed #9aa9ba;
+      border-bottom: 2px dashed #9aa9ba;
+    }
+
+    .vertical {
+      position: absolute;
+      left: calc(50% - 27px);
+      width: 54px;
+      height: 100%;
+      background: #394b61;
+      border-left: 2px dashed #9aa9ba;
+      border-right: 2px dashed #9aa9ba;
+    }
+
+    .junction-label {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      padding: 6px 10px;
+      background: #101a2bcc;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      background: #101c30;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .metric small {
+      display: block;
+      color: #9cb1c9;
+      margin-bottom: 9px;
+    }
+
+    .metric strong {
+      font-size: 20px;
+      color: #e5f1ff;
+    }
+
+    .note {
+      color: #9cb1c9;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .wide { margin-bottom: 20px; }
+
+
+#alert-list {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #30435d;
+  border-radius: 10px;
+}
+
+#alert-list table {
+  min-width: 650px;
+}
+
+#alert-list th {
+  position: sticky;
+  top: 0;
+  background: #243650;
+  z-index: 1;
+}
+
+#alert-list tr:hover td {
+  background: #20324b;
+}
+
+/* AI 風險等級視覺化 */
+.risk-safe {
+  color: #4ade80 !important;
+}
+
+.risk-caution {
+  color: #facc15 !important;
+}
+
+.risk-danger {
+  color: #f87171 !important;
+}
+
+.risk-safe,
+.risk-caution,
+.risk-danger {
+  font-weight: bold;
+}
+
+
+    @media (max-width: 750px) {
+      .grid { grid-template-columns: 1fr; }
+      header { padding: 20px; }
+      main { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>V2X 智慧路口安全監控中心</h1>
+    <p>SUMO × 5G × MEC × Federated Distillation</p>
+    <span class="status">資料來源：尚未連線</span>
+  </header>
+
+  <main>
+    <section class="grid">
+      <div class="card">
+        <h2>路口 A｜號誌十字路口</h2>
+        <p>主要觀察：追撞風險</p>
+        <div class="road">
+          <div class="horizontal"></div>
+          <div class="vertical"></div>
+          <div class="junction-label">路口示意圖｜非即時車輛位置</div>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <small>AI 風險預測</small>
+            <strong>等待資料</strong>
+          </div>
+          <div class="metric">
+            <small>衝突車輛</small>
+            <strong>—</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>路口 B｜無號誌 T 字路口</h2>
+
+<div class="metric" style="margin: 12px 0;">
+  <small>路口 B｜選取的歷史告警車輛</small>
+  <strong id="intersection-b-vehicle">
+    尚未選擇車輛
+  </strong>
+  <p class="note" id="intersection-b-direction">
+    選取下方歷史告警紀錄後顯示方向資訊。
+    非即時車輛位置。
+  </p>
+</div>
+
+
+<div class="metric" style="margin: 12px 0;">
+  <small>歷史告警車輛｜來源方向示意</small>
+
+  <div id="b-direction-indicator"
+       style="font-size: 24px; font-weight: bold;
+              text-align: center; padding: 16px;">
+    尚未選擇方向
+  </div>
+
+  <p class="note">
+    方向依 SUMO 車輛 ID 解析，
+    不代表車輛即時座標或實際行駛軌跡。
+  </p>
+</div>
+
+        <p>主要觀察：側向衝突風險</p>
+        <div class="road">
+          <div class="horizontal"></div>
+          <div class="vertical" style="height: 115px; top: 115px;"></div>
+          <div class="junction-label">路口示意圖｜非即時車輛位置</div>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <small>AI 風險預測</small>
+            <strong>等待資料</strong>
+          </div>
+          <div class="metric">
+            <small>衝突車輛</small>
+            <strong>—</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>5G + MEC 延遲監控</h2>
+        <div class="metrics">
+          <div class="metric">
+            <small>端到端延遲</small>
+            <strong>— ms</strong>
+          </div>
+          <div class="metric">
+            <small>MEC 推論延遲</small>
+            <strong>— ms</strong>
+          </div>
+        </div>
+        <p class="note">
+          待串接 UE 紀錄中的 t_total_ms、
+          t3_inference_ms 等實際量測值。
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>AI 風險告警</h2>
+
+<div class="metrics" style="margin-bottom: 16px;">
+  <div class="metric" style="border-left: 4px solid #facc15;">
+    <small>第一階段｜注意</small>
+    <strong id="caution-count" class="risk-caution">等待資料</strong>
+  </div>
+  <div class="metric" style="border-left: 4px solid #f87171;">
+    <small>第二階段｜危險</small>
+    <strong id="danger-count" class="risk-danger">等待資料</strong>
+  </div>
+</div>
+
+        <div class="metrics">
+          <div class="metric">
+            <small>安全</small>
+            <strong>—</strong>
+          </div>
+          <div class="metric">
+            <small>注意／危險</small>
+            <strong>—</strong>
+          </div>
+        </div>
+        <p class="note">
+          待串接 MEC 回傳的 risk_pred，
+          並顯示告警車輛與風險等級。
+        </p>
+      </div>
+    </section>
+
+<section class="card wide">
+  <h2>歷史 AI 告警車輛清單</h2>
+
+<div class="metric" id="selected-alert"
+     style="margin-bottom: 16px; border-left: 4px solid #f87171;">
+  <small>歷史告警車輛焦點｜非即時位置</small>
+  <strong id="selected-vehicle">尚未選擇車輛</strong>
+  <p class="note" id="selected-detail">
+    點選下方告警紀錄，即可查看車輛來源方向與 AI 風險等級。
+  </p>
+</div>
+
+  <p class="note">
+    顯示 UE 測試紀錄中的注意與危險事件，
+    非即時告警。
+  </p>
+  <div id="alert-list">
+    <p>等待歷史告警資料...</p>
+  </div>
+</section>
+
+    <section class="card wide">
+      <h2>聯邦蒸餾模型比較</h2>
+      <div class="metrics">
+        <div class="metric">
+          <small>Round 0｜協同前</small>
+          <strong>尚無資料</strong>
+        </div>
+        <div class="metric">
+          <small>Round 5｜協同後</small>
+          <strong>尚無資料</strong>
+        </div>
+      </div>
+      <p class="note">
+        此區預計顯示實際模型評估結果。
+        尚未連接評估紀錄，不顯示推測數字。
+      </p>
+    </section>
+  </main>
+
+<script>
+async function loadDashboardData() {
+  try {
+    const response = await fetch("./data.json", { cache: "no-store" });
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const data = await response.json();
+    const A = data.intersections.A;
+    const B = data.intersections.B;
+
+    const riskName = ["安全", "注意", "危險"];
+
+    const riskText = (node) => {
+      if (node.risk.danger > 0) {
+        return `危險 ${node.risk.danger} 筆`;
+      }
+      if (node.risk.caution > 0) {
+        return `注意 ${node.risk.caution} 筆`;
+      }
+      return `安全 ${node.risk.safe} 筆`;
+    };
+
+    const median = (a, b) => {
+      const values = [a, b].filter(v => typeof v === "number");
+      return values.length
+        ? values.map(v => v.toFixed(3) + " ms").join(" / ")
+        : "無資料";
+    };
+
+    const cards = document.querySelectorAll(".card");
+    const headerStatus = document.querySelector("header .status");
+
+    headerStatus.textContent = "資料來源：歷史 UE 測試紀錄（非即時）";
+
+    // 路口 A
+    const metricsA = cards[0].querySelectorAll(".metric strong");
+    metricsA[0].textContent = riskText(A);
+    metricsA[1].textContent = "未提供衝突對象";
+
+    // 路口 B
+    const metricsB = cards[1].querySelectorAll(".metric strong");
+    metricsB[0].textContent = riskText(B);
+    metricsB[1].textContent = "未提供衝突對象";
+
+
+    // 根據歷史紀錄中的最高風險等級設定顏色
+    function setRiskColor(element, node) {
+      element.classList.remove(
+        "risk-safe",
+        "risk-caution",
+        "risk-danger"
+      );
+
+      if (node.risk.danger > 0) {
+        element.classList.add("risk-danger");
+      } else if (node.risk.caution > 0) {
+        element.classList.add("risk-caution");
+      } else {
+        element.classList.add("risk-safe");
+      }
+    }
+
+    setRiskColor(metricsA[0], A);
+    setRiskColor(metricsB[0], B);
+
+    // 5G MEC 延遲：依序顯示 A / B
+    const latencyMetrics = cards[2].querySelectorAll(".metric strong");
+    latencyMetrics[0].textContent =
+      median(A.median_total_ms, B.median_total_ms);
+    latencyMetrics[1].textContent =
+      median(A.median_inference_ms, B.median_inference_ms);
+
+    // AI 風險告警
+    
+    // AI 風險告警：更新原本的統計區塊
+    const alertMetrics = cards[3].querySelectorAll(".metric strong");
+
+    alertMetrics[2].textContent =
+      (A.risk.safe + B.risk.safe).toLocaleString() + " 筆";
+
+    alertMetrics[3].textContent =
+      `注意 ${A.risk.caution + B.risk.caution} / ` +
+      `危險 ${A.risk.danger + B.risk.danger}`;
+
+
+    // 依照 SUMO 車輛 ID 命名規則解析行駛方向
+    function getVehicleDirection(vehicleId) {
+      if (typeof vehicleId !== "string") {
+        return "未提供";
+      }
+
+      const match = vehicleId.match(
+        /^([NSEW])_(left|right|straight)\./
+      );
+
+      if (!match) {
+        return "未知方向";
+      }
+
+      const directions = {
+        N: "北側",
+        S: "南側",
+        E: "東側",
+        W: "西側"
+      };
+
+      const movements = {
+        left: "左轉",
+        right: "右轉",
+        straight: "直行"
+      };
+
+      return directions[match[1]] + "來源・" +
+             movements[match[2]];
+    }
+
+
+    // 歷史 AI 告警車輛清單
+    const alertList = document.getElementById("alert-list");
+
+    const allAlerts = [
+      ...A.alerts.map(a => ({ ...a, node: "A" })),
+      ...B.alerts.map(a => ({ ...a, node: "B" }))
+    ];
+
+    // 危險優先，再依注意等級排列
+    allAlerts.sort((a, b) => b.risk - a.risk);
+
+    const formatMs = value =>
+      typeof value === "number" && Number.isFinite(value)
+        ? value.toFixed(3) + " ms"
+        : "未提供";
+
+    const formatTTC = value =>
+      typeof value === "number" && Number.isFinite(value)
+        ? value.toFixed(2) + " s"
+        : "未提供";
+
+    if (allAlerts.length === 0) {
+      alertList.textContent = "目前歷史紀錄沒有注意或危險事件";
+    } else {
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+
+      const header = document.createElement("tr");
+
+      ["路口", "車輛 ID", "行駛方向", "AI 風險", "TTC", "端到端延遲"]
+        .forEach(label => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          th.style.padding = "12px";
+          th.style.textAlign = "left";
+          th.style.borderBottom = "1px solid #30435d";
+          header.appendChild(th);
+        });
+
+      table.appendChild(header);
+
+      allAlerts.forEach(alert => {
+        const tr = document.createElement("tr");
+
+
+        // 點選歷史告警車輛，更新焦點資訊
+        tr.style.cursor = "pointer";
+
+        tr.addEventListener("click", () => {
+          const vehicleId = alert.vehicle_id ?? "未提供";
+          const direction = getVehicleDirection(alert.vehicle_id);
+          const riskLabel = alert.risk === 2 ? "危險" : "注意";
+
+          document.getElementById("selected-vehicle").textContent =
+            vehicleId;
+
+          document.getElementById("selected-detail").textContent =
+            `路口 ${alert.node}｜${direction}｜` +
+            `AI 風險：${riskLabel}（Risk ${alert.risk}）｜` +
+            `TTC：${formatTTC(alert.ttc_now)}｜` +
+            `端到端延遲：${formatMs(alert.t_total_ms)}`;
+
+          const selectedBox = document.getElementById("selected-alert");
+          selectedBox.style.borderLeftColor =
+            alert.risk === 2 ? "#f87171" : "#facc15";
+
+          // 同步更新路口 B 的歷史告警車輛資訊
+          const bVehicle = document.getElementById(
+            "intersection-b-vehicle"
+          );
+          const bDirection = document.getElementById(
+            "intersection-b-direction"
+          );
+
+
+          // 歷史車輛來源方向（非即時位置）
+          const directionIndicator = document.getElementById(
+            "b-direction-indicator"
+          );
+
+          const sourceDirection = {
+            N: "↓ 北側來源",
+            S: "↑ 南側來源",
+            E: "← 東側來源",
+            W: "→ 西側來源"
+          };
+
+          const directionMatch =
+            typeof alert.vehicle_id === "string"
+              ? alert.vehicle_id.match(/^([NSEW])_/)
+              : null;
+
+          if (alert.node === "B") {
+
+            directionIndicator.textContent = directionMatch
+              ? sourceDirection[directionMatch[1]]
+              : "未知來源方向";
+
+            directionIndicator.style.color =
+              alert.risk === 2 ? "#f87171" : "#facc15";
+
+            bVehicle.textContent =
+              `${vehicleId}｜${riskLabel}`;
+
+            bDirection.textContent =
+              `${direction}｜歷史 AI 告警（非即時位置）`;
+
+            
+bVehicle.style.setProperty(
+  "color",
+  alert.risk === 2 ? "#f87171" : "#facc15",
+  "important"
+);
+
+          } else {
+
+            directionIndicator.textContent = "尚未選擇路口 B 車輛";
+            directionIndicator.style.color = "";
+
+            bVehicle.textContent = "尚未選擇路口 B 車輛";
+            bDirection.textContent =
+              "目前選取的是其他路口的歷史告警。";
+            bVehicle.style.color = "";
+          }
+
+        });
+
+        
+const values = [
+  alert.node,
+  alert.vehicle_id ?? "未提供",
+  getVehicleDirection(alert.vehicle_id),
+  alert.risk === 2 ? "危險" : "注意",
+  formatTTC(alert.ttc_now),
+  formatMs(alert.t_total_ms)
+];
+
+
+        values.forEach((value, index) => {
+          const td = document.createElement("td");
+          td.textContent = value;
+          td.style.padding = "10px 12px";
+          td.style.borderBottom = "1px solid #30435d";
+
+          if (index === 3) {
+            td.style.color =
+              alert.risk === 2 ? "#ff7777" : "#ffd166";
+            td.style.fontWeight = "bold";
+          }
+
+          tr.appendChild(td);
+        });
+
+        table.appendChild(tr);
+      });
+
+      alertList.replaceChildren(table);
+      alertList.style.overflowX = "auto";
+    }
+
+
+    // 兩段式 AI 告警：讀取歷史測試資料
+    const cautionCount = A.risk.caution + B.risk.caution;
+    const dangerCount = A.risk.danger + B.risk.danger;
+
+    document.getElementById("caution-count").textContent =
+      cautionCount.toLocaleString() + " 筆";
+
+    document.getElementById("danger-count").textContent =
+      dangerCount.toLocaleString() + " 筆";
+
+    // 更新說明文字
+    cards[2].querySelector(".note").textContent =
+      "延遲數值依序為路口 A / B 的歷史中位數，" +
+      "不是即時量測。";
+
+    cards[3].querySelector(".note").textContent =
+      `路口 B 有 ${B.alerts.length} 筆歷史告警紀錄。` +
+      "目前尚未提供衝突對象與即時車輛位置。";
+
+  } catch (error) {
+    console.error("面板資料載入失敗：", error);
+    document.querySelector("header .status").textContent =
+      "歷史資料載入失敗，請檢查 data.json 與 HTTP 伺服器";
+  }
+}
+
+loadDashboardData();
+</script>
+
+</body>
+</html>

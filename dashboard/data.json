@@ -1,0 +1,357 @@
+{
+  "source": "historical_ue_logs",
+  "live": false,
+  "intersections": {
+    "A": {
+      "total": 1744,
+      "success": 1100,
+      "failed": 644,
+      "risk": {
+        "safe": 1100,
+        "caution": 0,
+        "danger": 0
+      },
+      "median_total_ms": 1.517,
+      "median_inference_ms": 0.264,
+      "alerts": []
+    },
+    "B": {
+      "total": 7400,
+      "success": 7100,
+      "failed": 300,
+      "risk": {
+        "safe": 7046,
+        "caution": 52,
+        "danger": 2
+      },
+      "median_total_ms": 1.479,
+      "median_inference_ms": 0.265,
+      "alerts": [
+        {
+          "vehicle_id": "E_left.85",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.34
+        },
+        {
+          "vehicle_id": "E_left.85",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.559
+        },
+        {
+          "vehicle_id": "E_left.85",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.287
+        },
+        {
+          "vehicle_id": "E_left.85",
+          "risk": 2,
+          "ttc_now": null,
+          "t_total_ms": 1.296
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.559
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.386
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.416
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.466
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.303
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.438
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.559
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.439
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.503
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.456
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.387
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.482
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.547
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.539
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.529
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": 21.715,
+          "t_total_ms": 1.488
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": 24.799,
+          "t_total_ms": 1.312
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": 33.001,
+          "t_total_ms": 1.364
+        },
+        {
+          "vehicle_id": "W_straight.341",
+          "risk": 1,
+          "ttc_now": 33.542,
+          "t_total_ms": 1.546
+        },
+        {
+          "vehicle_id": "E_left.85",
+          "risk": 1,
+          "ttc_now": 41.604,
+          "t_total_ms": 1.307
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.306
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.307
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.335
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.372
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.312
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.451
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.526
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.474
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.348
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.386
+        },
+        {
+          "vehicle_id": "W_straight.342",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.47
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.632
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.551
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.547
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.67
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.449
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.629
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.536
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.638
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": 55.273,
+          "t_total_ms": 1.689
+        },
+        {
+          "vehicle_id": "E_straight.343",
+          "risk": 1,
+          "ttc_now": 54.966,
+          "t_total_ms": 1.485
+        },
+        {
+          "vehicle_id": "W_straight.343",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.621
+        },
+        {
+          "vehicle_id": "S_left.215",
+          "risk": 1,
+          "ttc_now": 2.126,
+          "t_total_ms": 1.659
+        },
+        {
+          "vehicle_id": "S_left.215",
+          "risk": 1,
+          "ttc_now": 2.067,
+          "t_total_ms": 1.609
+        },
+        {
+          "vehicle_id": "S_left.215",
+          "risk": 1,
+          "ttc_now": 2.034,
+          "t_total_ms": 1.729
+        },
+        {
+          "vehicle_id": "W_right.86",
+          "risk": 2,
+          "ttc_now": null,
+          "t_total_ms": 1.61
+        },
+        {
+          "vehicle_id": "S_right.214",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.447
+        },
+        {
+          "vehicle_id": "W_right.86",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.45
+        },
+        {
+          "vehicle_id": "W_right.86",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.39
+        },
+        {
+          "vehicle_id": "W_right.86",
+          "risk": 1,
+          "ttc_now": null,
+          "t_total_ms": 1.439
+        }
+      ]
+    }
+  }
+}
