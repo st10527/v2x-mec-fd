@@ -1,0 +1,19 @@
+{
+  "source": "local_simulation",
+  "live": false,
+  "updated_at": "2026-11-19T05:20:57.945855+00:00",
+  "intersections": {
+    "A": {
+      "vehicle_id": "TEST_A_004",
+      "risk_pred": 1,
+      "t_total_ms": 1.52,
+      "t3_inference_ms": 0.31
+    },
+    "B": {
+      "vehicle_id": "TEST_B_003",
+      "risk_pred": 2,
+      "t_total_ms": 1.68,
+      "t3_inference_ms": 0.35
+    }
+  }
+}
