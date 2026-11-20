@@ -52,12 +52,15 @@ def main():
 
     try:
         while True:
+            has_new_records = False
+
             for node, path in log_files.items():
                 records, offsets[node] = read_new_records(
                     path, offsets[node]
                 )
 
                 for record in records:
+                    has_new_records = True
                     latest_records[node] = record
                     print(
                         f"[{node}] "
@@ -67,7 +70,7 @@ def main():
                         flush=True
                     )
 
-            if any(record is not None for record in latest_records.values()):
+            if has_new_records:
                 snapshot = build_live_data(latest_records)
                 write_live_json(args.output, snapshot)
 
