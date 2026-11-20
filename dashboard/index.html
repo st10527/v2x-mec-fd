@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -172,6 +172,40 @@
       header { padding: 20px; }
       main { padding: 14px; }
     }
+      /* Dashboard data mode controls */
+    #data-mode-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    #data-mode-controls button {
+      padding: 10px 20px;
+      border: 1px solid #38bdf8;
+      border-radius: 10px;
+      background: #172b46;
+      color: #e0f2fe;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    #data-mode-controls button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    #data-mode-controls button:not(:disabled):hover {
+      background: #164e63;
+    }
+
+    #data-mode-controls button.active {
+      background: #0369a1;
+      border-color: #7dd3fc;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -179,8 +213,47 @@
     <h1>V2X 智慧路口安全監控中心</h1>
     <p>SUMO × 5G × MEC × Federated Distillation</p>
     <span class="status">資料來源：尚未連線</span>
+    <div id="data-mode-controls" style="margin-top: 16px;">
+      <button type="button" id="history-mode-btn" disabled>
+        歷史資料
+      </button>
+      <button type="button" id="local-mode-btn" disabled>
+        本機監控（模擬）
+      </button>
+    </div>
   </header>
 
+  <section id="local-monitor-panel"
+           class="card"
+           style="display:none; margin:24px auto 0; max-width:1352px;">
+    <h2>本機監控｜模擬測試資料</h2>
+    <p class="note">
+      此區顯示本機 JSON 測試紀錄，
+      尚未連接 VM 真實即時資料。
+    </p>
+
+    <div class="grid" style="margin-bottom:0;">
+      <div class="metric">
+        <small>路口 A｜最新測試車輛</small>
+        <strong id="local-a-vehicle">等待資料</strong>
+        <p id="local-a-status" class="note">尚未載入</p>
+      </div>
+
+      <div class="metric">
+        <small>路口 B｜最新測試車輛</small>
+        <strong id="local-b-vehicle">等待資料</strong>
+        <p id="local-b-status" class="note">尚未載入</p>
+      </div>
+    </div>
+
+    <p id="local-monitor-freshness" class="note"
+   role="status" aria-live="polite">
+  資料狀態：尚未檢查
+</p>
+<p id="local-monitor-updated" class="note">
+      快照時間：尚未載入
+    </p>
+  </section>
   <main>
     <section class="grid">
       <div class="card">
@@ -374,7 +447,7 @@ async function loadDashboardData() {
         : "無資料";
     };
 
-    const cards = document.querySelectorAll(".card");
+    const cards = document.querySelectorAll("main .card");
     const headerStatus = document.querySelector("header .status");
 
     headerStatus.textContent = "資料來源：歷史 UE 測試紀錄（非即時）";
@@ -650,8 +723,411 @@ const values = [
   }
 }
 
+async function loadLocalMonitorData() {
+  const response = await fetch("./live.json", {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error("Local monitor HTTP " + response.status);
+  }
+
+  const data = await response.json();
+
+  if (
+    data.source !== "local_simulation" ||
+    data.live !== false ||
+    !data.intersections ||
+    typeof data.intersections !== "object"
+  ) {
+    throw new Error("Invalid local monitor data");
+  }
+
+  return data;
+}
+
+function renderLocalMonitorData(data) {
+  const riskNames = {
+    0: "安全",
+    1: "注意",
+    2: "危險"
+  };
+
+  const formatLatency = value =>
+    typeof value === "number" && Number.isFinite(value)
+      ? value.toFixed(3) + " ms"
+      : "未提供";
+
+  for (const node of ["A", "B"]) {
+    const record = data.intersections[node];
+    const prefix = node.toLowerCase();
+
+    const vehicleElement =
+      document.getElementById(`local-${prefix}-vehicle`);
+
+    const statusElement =
+      document.getElementById(`local-${prefix}-status`);
+
+    const riskStyles = {
+      0: {
+        color: "#4ade80",
+        background: "rgba(74, 222, 128, 0.10)"
+      },
+      1: {
+        color: "#fbbf24",
+        background: "rgba(251, 191, 36, 0.12)"
+      },
+      2: {
+        color: "#f87171",
+        background: "rgba(248, 113, 113, 0.12)"
+      },
+      unknown: {
+        color: "#cbd5e1",
+        background: "rgba(148, 163, 184, 0.12)"
+      }
+    };
+
+    const riskValue = record?.risk_pred;
+    const riskStyle = (
+      riskValue === 0 ||
+      riskValue === 1 ||
+      riskValue === 2
+    )
+      ? riskStyles[riskValue]
+      : riskStyles.unknown;
+
+    const riskCard = vehicleElement.parentElement;
+
+    const cardBackgrounds = {
+      0: "rgba(74, 222, 128, 0.06)",
+      1: "rgba(251, 191, 36, 0.08)",
+      2: "rgba(248, 113, 113, 0.10)",
+      unknown: "rgb(16, 28, 48)"
+    };
+
+    const cardBackground = (
+      riskValue === 0 ||
+      riskValue === 1 ||
+      riskValue === 2
+    )
+      ? cardBackgrounds[riskValue]
+      : cardBackgrounds.unknown;
+
+    riskCard.style.background = cardBackground;
+    riskCard.style.border =
+      `2px solid ${riskStyle.color}`;
+    riskCard.style.borderRadius = "12px";
+    riskCard.style.boxShadow =
+      `0 0 18px ${riskStyle.background}`;
+    riskCard.style.transition =
+      "background 0.3s, border-color 0.3s, box-shadow 0.3s";
+
+    vehicleElement.style.color = riskStyle.color;
+    statusElement.style.color = riskStyle.color;
+    statusElement.style.background = riskStyle.background;
+    statusElement.style.padding = "10px 12px";
+    statusElement.style.borderRadius = "8px";
+    statusElement.style.borderLeft =
+      `4px solid ${riskStyle.color}`;
+
+    if (!record) {
+      vehicleElement.textContent = "尚無測試紀錄";
+      statusElement.textContent = "風險與延遲：未提供";
+      continue;
+    }
+
+    const risk = riskNames[record.risk_pred] ?? "未知";
+
+    vehicleElement.textContent =
+      typeof record.vehicle_id === "string"
+        ? record.vehicle_id
+        : "車輛 ID 未提供";
+
+    statusElement.textContent =
+      `風險：${risk}｜` +
+      `端到端：${formatLatency(record.t_total_ms)}｜` +
+      `推論：${formatLatency(record.t3_inference_ms)}`;
+  }
+
+  const updatedElement =
+    document.getElementById("local-monitor-updated");
+
+  const timestamp = Date.parse(data.updated_at);
+
+  updatedElement.textContent =
+    Number.isFinite(timestamp)
+      ? "快照建立時間：" +
+        new Date(timestamp).toLocaleString("zh-TW") +
+        "（非車輛事件時間）"
+      : "快照建立時間：未提供";
+}
+function checkSnapshotFreshness(data, maxAgeSeconds = 10) {
+  const timestamp = Date.parse(data?.updated_at);
+
+  if (!Number.isFinite(timestamp)) {
+    return {
+      fresh: false,
+      ageSeconds: null,
+      reason: "快照時間無效或未提供"
+    };
+  }
+
+  const ageSeconds = (Date.now() - timestamp) / 1000;
+
+  if (ageSeconds < -5) {
+    return {
+      fresh: false,
+      ageSeconds,
+      reason: "快照時間晚於目前時間"
+    };
+  }
+
+  if (ageSeconds > maxAgeSeconds) {
+    return {
+      fresh: false,
+      ageSeconds,
+      reason: "快照已過期"
+    };
+  }
+
+  return {
+    fresh: true,
+    ageSeconds,
+    reason: "快照建立時間在允許範圍內"
+  };
+}
+function renderSnapshotFreshness(data) {
+  const element =
+    document.getElementById("local-monitor-freshness");
+
+  if (!element) return;
+
+  const result = checkSnapshotFreshness(data);
+
+  if (result.fresh) {
+    element.textContent =
+      "資料狀態：快照建立時間在 10 秒內（本機模擬，非 VM 即時資料）";
+    element.style.color = "#4ade80";
+  } else {
+    element.textContent =
+      "資料狀態：快照未通過新鮮度檢查｜" + result.reason;
+    element.style.color = "#f87171";
+  }
+
+  const panel = document.getElementById("local-monitor-panel");
+  if (!panel) return;
+
+  let notice = document.getElementById("local-stale-warning");
+
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.id = "local-stale-warning";
+    panel.prepend(notice);
+
+    Object.assign(notice.style, {
+      background: "rgba(251, 191, 36, 0.12)",
+      color: "#fbbf24",
+      border: "1px solid #fbbf24",
+      borderRadius: "10px",
+      padding: "12px 16px",
+      marginBottom: "16px",
+      fontWeight: "700"
+    });
+  }
+
+  notice.textContent =
+    "⚠ 本機模擬快照未通過新鮮度檢查：" +
+    result.reason +
+    "｜以下風險為測試紀錄，非即時道路狀況";
+
+  notice.style.display = result.fresh ? "none" : "block";
+
+  for (const node of ["a", "b"]) {
+    const vehicle = document.getElementById(
+      `local-${node}-vehicle`
+    );
+
+    const card = vehicle?.parentElement;
+    if (!card) continue;
+
+    card.style.opacity = result.fresh ? "1" : "0.65";
+
+    if (!result.fresh) {
+      card.style.boxShadow = "none";
+    } else {
+      const status = document.getElementById(
+        `local-${node}-status`
+      );
+
+      const color = status?.style.background ||
+        "rgba(148, 163, 184, 0.12)";
+
+      card.style.boxShadow = `0 0 18px ${color}`;
+    }
+  }
+}
+let currentLocalSnapshot = null;
+
+function startFreshnessTimer() {
+  if (window.dashboardFreshnessTimer) {
+    clearInterval(window.dashboardFreshnessTimer);
+  }
+
+  window.dashboardFreshnessTimer = setInterval(() => {
+    const panel = document.getElementById(
+      "local-monitor-panel"
+    );
+
+    if (
+      currentLocalSnapshot &&
+      panel &&
+      panel.style.display !== "none"
+    ) {
+      renderSnapshotFreshness(currentLocalSnapshot);
+    }
+  }, 1000);
+}
+
+startFreshnessTimer();
+let localMonitorPollInProgress = false;
+
+async function pollLocalMonitorOnce() {
+  if (localMonitorPollInProgress) {
+    return "skipped: previous request pending";
+  }
+
+  const panel = document.getElementById(
+    "local-monitor-panel"
+  );
+
+  if (!panel || panel.style.display === "none") {
+    return "skipped: local mode inactive";
+  }
+
+  localMonitorPollInProgress = true;
+
+  try {
+    const data = await loadLocalMonitorData();
+
+    // Only update the local simulation panel.
+    currentLocalSnapshot = data;
+    renderLocalMonitorData(data);
+    renderSnapshotFreshness(data);
+
+    return "updated: local simulation snapshot";
+  } catch (error) {
+    console.error("本機模擬資料輪詢失敗：", error);
+    return "error: local snapshot unavailable";
+  } finally {
+    localMonitorPollInProgress = false;
+  }
+}
+function startLocalMonitorPolling() {
+  if (window.dashboardLocalPollTimer) {
+    clearInterval(window.dashboardLocalPollTimer);
+  }
+
+  window.dashboardLocalPollTimer = setInterval(() => {
+    const panel = document.getElementById(
+      "local-monitor-panel"
+    );
+
+    if (panel && panel.style.display !== "none") {
+      pollLocalMonitorOnce().catch(error => {
+        console.error("本機監控自動輪詢失敗：", error);
+      });
+    }
+  }, 2000);
+}
+
+startLocalMonitorPolling();
+async function setDashboardMode(mode) {
+  const panel = document.getElementById("local-monitor-panel");
+  const historyButton = document.getElementById("history-mode-btn");
+  const localButton = document.getElementById("local-mode-btn");
+  const historyMain = document.querySelector("body > main");
+
+  if (mode === "history") {
+    panel.style.display = "none";
+    if (historyMain) historyMain.style.display = "";
+    historyButton.classList.add("active");
+    localButton.classList.remove("active");
+
+    await loadDashboardData();
+    return;
+  }
+
+  if (mode === "local") {
+    try {
+      const data = await loadLocalMonitorData();
+
+      currentLocalSnapshot = data;
+      renderLocalMonitorData(data);
+      renderSnapshotFreshness(data);
+
+      panel.style.display = "block";
+      if (historyMain) historyMain.style.display = "none";
+      localButton.classList.add("active");
+      historyButton.classList.remove("active");
+
+      document.querySelector("header .status").textContent =
+        "資料來源：本機模擬測試（非 VM 即時資料）";
+
+    } catch (error) {
+      console.error("本機監控載入失敗：", error);
+
+      panel.style.display = "none";
+      document.querySelector("header .status").textContent =
+        "本機模擬資料載入失敗";
+
+      throw error;
+    }
+    return;
+  }
+
+  throw new Error("Unknown dashboard mode: " + mode);
+}
+const historyModeButton =
+  document.getElementById("history-mode-btn");
+
+const localModeButton =
+  document.getElementById("local-mode-btn");
+
+historyModeButton.disabled = false;
+localModeButton.disabled = false;
+
+historyModeButton.addEventListener("click", () => {
+  setDashboardMode("history");
+});
+
+localModeButton.addEventListener("click", () => {
+  setDashboardMode("local").catch(error => {
+    console.error("切換本機監控失敗：", error);
+  });
+});
+
+historyModeButton.classList.add("active");
+
 loadDashboardData();
 </script>
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
