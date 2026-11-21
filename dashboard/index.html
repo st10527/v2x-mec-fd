@@ -220,6 +220,9 @@
       <button type="button" id="local-mode-btn" disabled>
         本機監控（模擬）
       </button>
+      <button type="button" id="replay-mode-btn" disabled>
+        歷史 UE 重播
+      </button>
     </div>
   </header>
 
@@ -252,6 +255,50 @@
 </p>
 <p id="local-monitor-updated" class="note">
       快照時間：尚未載入
+    </p>
+  </section>
+  <section id="replay-panel"
+           class="card"
+           style="display:none; margin:24px auto 0; max-width:1352px;">
+    <h2>歷史 UE 紀錄重播</h2>
+    <p class="note">
+      此區顯示歷史 UE 推論紀錄，
+      非 VM 即時資料，
+      也不代表 SUMO 真實模擬時間。
+    </p>
+
+    <div class="grid" style="margin-bottom:0;">
+      <div class="metric">
+        <small>路口 B｜歷史車輛</small>
+        <strong id="replay-vehicle">等待重播</strong>
+        <p id="replay-risk" class="note">
+          風險狀態：尚未載入
+        </p>
+      </div>
+
+      <div class="metric">
+        <small>端到端延遲</small>
+        <strong id="replay-latency">-- ms</strong>
+        <p id="replay-step" class="note">
+          重播進度：0 / 5
+        </p>
+      </div>
+    </div>
+
+    <div id="replay-controls" style="margin-top:16px;">
+      <button type="button" id="replay-play-btn" disabled>
+        播放
+      </button>
+      <button type="button" id="replay-pause-btn" disabled>
+        暫停
+      </button>
+    </div>
+
+    <p id="replay-status"
+       class="note"
+       role="status"
+       aria-live="polite">
+      歷史重播尚未啟動
     </p>
   </section>
   <main>
@@ -723,6 +770,243 @@ const values = [
   }
 }
 
+// Historical UE replay state (not VM live data).
+let historicalReplayRecords = [];
+let historicalReplayIndex = 0;
+let historicalReplayTimer = null;
+let historicalReplayPlaying = false;
+
+function stopHistoricalReplayTimer() {
+  if (historicalReplayTimer !== null) {
+    clearInterval(historicalReplayTimer);
+    historicalReplayTimer = null;
+  }
+
+  historicalReplayPlaying = false;
+}
+
+function renderHistoricalReplayRecord(record, index, total) {
+  const panel = document.getElementById("replay-panel");
+  const vehicle = document.getElementById("replay-vehicle");
+  const risk = document.getElementById("replay-risk");
+  const latency = document.getElementById("replay-latency");
+  const step = document.getElementById("replay-step");
+  const status = document.getElementById("replay-status");
+
+  if (!panel || !vehicle || !risk || !latency || !step || !status) {
+    throw new Error("Historical replay panel elements missing");
+  }
+
+  const riskLabels = {
+    0: "SAFE",
+    1: "CAUTION",
+    2: "DANGER"
+  };
+
+  const riskColors = {
+    0: "#16a34a",
+    1: "#ca8a04",
+    2: "#dc2626"
+  };
+
+  vehicle.textContent = record.vehicle_id;
+  risk.textContent =
+    "Risk " + record.risk_pred +
+    " (" + riskLabels[record.risk_pred] + ")";
+  risk.style.color = riskColors[record.risk_pred];
+
+  latency.textContent = record.t_total_ms + " ms";
+  step.textContent =
+    "Replay step: " + (index + 1) + " / " + total;
+
+  status.textContent =
+    "Historical UE record - not VM live data";
+}
+
+function advanceHistoricalReplay() {
+  if (historicalReplayRecords.length === 0) {
+    throw new Error("Historical replay has not been initialized");
+  }
+
+  if (historicalReplayIndex >= historicalReplayRecords.length - 1) {
+    stopHistoricalReplayTimer();
+    return false;
+  }
+
+  historicalReplayIndex += 1;
+
+  renderHistoricalReplayRecord(
+    historicalReplayRecords[historicalReplayIndex],
+    historicalReplayIndex,
+    historicalReplayRecords.length
+  );
+
+  if (historicalReplayIndex >= historicalReplayRecords.length - 1) {
+    stopHistoricalReplayTimer();
+  }
+
+  return true;
+}
+
+function startHistoricalReplay() {
+  if (historicalReplayRecords.length === 0) {
+    throw new Error("Historical replay has not been initialized");
+  }
+
+  if (historicalReplayPlaying) {
+    return false;
+  }
+
+  if (historicalReplayIndex >= historicalReplayRecords.length - 1) {
+    historicalReplayIndex = 0;
+
+    renderHistoricalReplayRecord(
+      historicalReplayRecords[0],
+      0,
+      historicalReplayRecords.length
+    );
+  }
+
+  stopHistoricalReplayTimer();
+  historicalReplayPlaying = true;
+
+  const playButton = document.getElementById("replay-play-btn");
+  const pauseButton = document.getElementById("replay-pause-btn");
+
+  if (!playButton || !pauseButton) {
+    stopHistoricalReplayTimer();
+    throw new Error("Replay control buttons missing");
+  }
+
+  playButton.disabled = true;
+  pauseButton.disabled = false;
+
+  historicalReplayTimer = setInterval(() => {
+    const advanced = advanceHistoricalReplay();
+
+    if (!advanced || !historicalReplayPlaying) {
+      stopHistoricalReplayTimer();
+      playButton.disabled = false;
+      pauseButton.disabled = true;
+    }
+  }, 1000);
+
+  return true;
+}
+
+function pauseHistoricalReplay() {
+  if (!historicalReplayPlaying) {
+    return false;
+  }
+
+  stopHistoricalReplayTimer();
+
+  const playButton = document.getElementById("replay-play-btn");
+  const pauseButton = document.getElementById("replay-pause-btn");
+
+  if (!playButton || !pauseButton) {
+    throw new Error("Replay control buttons missing");
+  }
+
+  playButton.disabled = false;
+  pauseButton.disabled = true;
+
+  return true;
+}
+
+async function initializeHistoricalReplay() {
+  const data = await loadHistoricalReplayData();
+
+  stopHistoricalReplayTimer();
+
+  historicalReplayRecords = data.records;
+  historicalReplayIndex = 0;
+
+  renderHistoricalReplayRecord(
+    historicalReplayRecords[0],
+    historicalReplayIndex,
+    historicalReplayRecords.length
+  );
+
+  const playButton = document.getElementById("replay-play-btn");
+  const pauseButton = document.getElementById("replay-pause-btn");
+
+  if (!playButton || !pauseButton) {
+    throw new Error("Replay control buttons missing");
+  }
+
+  playButton.disabled = false;
+  pauseButton.disabled = true;
+
+  return {
+    source: data.source,
+    live: data.live,
+    total: historicalReplayRecords.length,
+    index: historicalReplayIndex,
+    playing: historicalReplayPlaying
+  };
+}
+
+async function previewHistoricalReplayFirstRecord() {
+  const data = await loadHistoricalReplayData();
+
+  const panel = document.getElementById("replay-panel");
+
+  if (!panel) {
+    throw new Error("Replay panel missing");
+  }
+
+  renderHistoricalReplayRecord(
+    data.records[0],
+    0,
+    data.records.length
+  );
+
+  panel.style.display = "block";
+
+  return {
+    source: data.source,
+    live: data.live,
+    vehicle: data.records[0].vehicle_id,
+    risk: data.records[0].risk_pred,
+    total: data.records.length
+  };
+}
+
+async function loadHistoricalReplayData() {
+  const response = await fetch("./replay.json", {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error("Historical replay HTTP " + response.status);
+  }
+
+  const data = await response.json();
+
+  if (
+    data.source !== "historical_ue_log" ||
+    data.live !== false ||
+    !Array.isArray(data.records) ||
+    data.records.length === 0
+  ) {
+    throw new Error("Invalid historical replay data");
+  }
+
+  for (const record of data.records) {
+    if (
+      record.intersection !== "B" ||
+      typeof record.vehicle_id !== "string" ||
+      ![0, 1, 2].includes(record.risk_pred) ||
+      typeof record.t_total_ms !== "number"
+    ) {
+      throw new Error("Invalid historical replay record");
+    }
+  }
+
+  return data;
+}
+
 async function loadLocalMonitorData() {
   const response = await fetch("./live.json", {
     cache: "no-store"
@@ -1041,60 +1325,101 @@ function startLocalMonitorPolling() {
 }
 
 startLocalMonitorPolling();
+const replayPlayButton = document.getElementById("replay-play-btn");
+const replayPauseButton = document.getElementById("replay-pause-btn");
+
+if (!replayPlayButton || !replayPauseButton) {
+  throw new Error("Replay control buttons missing");
+}
+
+replayPlayButton.addEventListener("click", () => {
+  try {
+    startHistoricalReplay();
+  } catch (error) {
+    console.error("Historical replay start failed:", error);
+  }
+});
+
+replayPauseButton.addEventListener("click", () => {
+  try {
+    pauseHistoricalReplay();
+  } catch (error) {
+    console.error("Historical replay pause failed:", error);
+  }
+});
+
 async function setDashboardMode(mode) {
-  const panel = document.getElementById("local-monitor-panel");
+  const localPanel = document.getElementById("local-monitor-panel");
+  const replayPanel = document.getElementById("replay-panel");
+
   const historyButton = document.getElementById("history-mode-btn");
   const localButton = document.getElementById("local-mode-btn");
+  const replayButton = document.getElementById("replay-mode-btn");
+
   const historyMain = document.querySelector("body > main");
+  const status = document.querySelector("header .status");
 
+  if (
+    !localPanel || !replayPanel ||
+    !historyButton || !localButton || !replayButton ||
+    !historyMain || !status
+  ) {
+    throw new Error("Dashboard mode elements missing");
+  }
+
+  if (!["history", "local", "replay"].includes(mode)) {
+    throw new Error("Unknown dashboard mode: " + mode);
+  }
+
+  // Load data before switching the visible mode.
   if (mode === "history") {
-    panel.style.display = "none";
-    if (historyMain) historyMain.style.display = "";
-    historyButton.classList.add("active");
-    localButton.classList.remove("active");
-
     await loadDashboardData();
-    return;
   }
 
   if (mode === "local") {
-    try {
-      const data = await loadLocalMonitorData();
-
-      currentLocalSnapshot = data;
-      renderLocalMonitorData(data);
-      renderSnapshotFreshness(data);
-
-      panel.style.display = "block";
-      if (historyMain) historyMain.style.display = "none";
-      localButton.classList.add("active");
-      historyButton.classList.remove("active");
-
-      document.querySelector("header .status").textContent =
-        "資料來源：本機模擬測試（非 VM 即時資料）";
-
-    } catch (error) {
-      console.error("本機監控載入失敗：", error);
-
-      panel.style.display = "none";
-      document.querySelector("header .status").textContent =
-        "本機模擬資料載入失敗";
-
-      throw error;
-    }
-    return;
+    const data = await loadLocalMonitorData();
+    currentLocalSnapshot = data;
+    renderLocalMonitorData(data);
+    renderSnapshotFreshness(data);
   }
 
-  throw new Error("Unknown dashboard mode: " + mode);
+  if (mode === "replay") {
+    await initializeHistoricalReplay();
+  } else {
+    stopHistoricalReplayTimer();
+  }
+
+  historyMain.style.display = mode === "history" ? "" : "none";
+  localPanel.style.display = mode === "local" ? "block" : "none";
+  replayPanel.style.display = mode === "replay" ? "block" : "none";
+
+  historyButton.classList.toggle("active", mode === "history");
+  localButton.classList.toggle("active", mode === "local");
+  replayButton.classList.toggle("active", mode === "replay");
+
+  if (mode === "local") {
+    status.textContent =
+      "資料來源：本機模擬測試（非 VM 即時資料）";
+  }
+
+  if (mode === "replay") {
+    status.textContent =
+      "資料來源：歷史 UE 推論紀錄（非 VM 即時資料）";
+  }
 }
+
 const historyModeButton =
   document.getElementById("history-mode-btn");
 
 const localModeButton =
   document.getElementById("local-mode-btn");
 
+const replayModeButton =
+  document.getElementById("replay-mode-btn");
+
 historyModeButton.disabled = false;
 localModeButton.disabled = false;
+replayModeButton.disabled = false;
 
 historyModeButton.addEventListener("click", () => {
   setDashboardMode("history");
@@ -1103,6 +1428,12 @@ historyModeButton.addEventListener("click", () => {
 localModeButton.addEventListener("click", () => {
   setDashboardMode("local").catch(error => {
     console.error("切換本機監控失敗：", error);
+  });
+});
+
+replayModeButton.addEventListener("click", () => {
+  setDashboardMode("replay").catch(error => {
+    console.error("Historical replay mode failed:", error);
   });
 });
 
