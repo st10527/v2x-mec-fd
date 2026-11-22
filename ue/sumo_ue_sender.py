@@ -28,6 +28,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import gzip
 import json
 import pathlib
@@ -152,8 +153,12 @@ def iter_traci(scenario: str, cfg: dict, inter: str):
     scen = cfg["sumo"]["scenarios"][scenario]
     sumocfg = config.path(scen["dir"], scen["config"])
     binary = _sumo_binary()
+    # 關掉 SSM：場景設定檔會把 SSM 寫進場景目錄的 ssm.xml.gz（訓練標籤的來源），
+    # 這裡只需要車輛狀態。不關的話每跑一次就覆蓋標籤檔，--limit 中途停下還會留下殘缺版本
+    # （115/11/22 發現 VM2 上 A 路口的 ssm.xml.gz 被蓋成 663 bytes）；路口 A 的 SSM 也要 4 GB 記憶體。
     traci.start([binary, "-c", str(sumocfg),
-                 "--step-length", str(cfg["sumo"]["step_length"])])
+                 "--step-length", str(cfg["sumo"]["step_length"]),
+                 "--device.ssm.probability", "0"])
     try:
         for t, batch in iter_states(traci, inter):
             if batch:
@@ -175,6 +180,10 @@ def main(argv=None) -> int:
     ap.add_argument("--realtime", action="store_true",
                     help="重播時依 step-length 放慢到真實時間")
     ap.add_argument("--limit", type=int, default=None, help="只送前 N 筆")
+    ap.add_argument("--from-time", type=float, default=None,
+                    help="從模擬時間第 N 秒開始送（之前的略過）。模擬剛開始的幾秒路口幾乎沒車、"
+                         "沒有危險，只送開頭會看到全部是 0；要看到警示請從危險較多的時段開始，"
+                         "例如路口 B 的測試時段 --from-time 3068。每台車要先累積 2 秒資料才會推論")
     ap.add_argument("--timeout", type=float, default=5.0)
     ap.add_argument("--out", default=None,
                     help="UE 端延遲 log 路徑，預設 logs/ue_{路口}.jsonl")
@@ -193,11 +202,14 @@ def main(argv=None) -> int:
 
     print(f"路口 {inter} -> {url}\n延遲 log -> {out}")
     sent, errors, lat = 0, 0, []
+    pred_cnt, rule_cnt = Counter(), Counter()
     client = build_client(a.interface, a.timeout)
     t_start = time.time()
     try:
         with client, open(out, "a", encoding="utf-8") as fh:
             for sim_t, batch in source:
+                if a.from_time is not None and sim_t < a.from_time:
+                    continue
                 for rec in batch:
                     rec.setdefault("intersection", inter)
                     res = send_one(client, url, rec)
@@ -209,6 +221,8 @@ def main(argv=None) -> int:
                             print(f"  送出失敗：{res['error']}")
                     else:
                         lat.append(res["t_total_ms"])
+                        pred_cnt[res.get("risk_pred")] += 1
+                        rule_cnt[res.get("risk_rule")] += 1
                     if a.limit and sent >= a.limit:
                         raise StopIteration
     except (KeyboardInterrupt, StopIteration):
@@ -222,6 +236,10 @@ def main(argv=None) -> int:
         p95 = arr[min(len(arr) - 1, int(len(arr) * 0.95))]
         print(f"端到端延遲 T_total：中位數 {p50:.2f} ms、p95 {p95:.2f} ms、"
               f"最大 {arr[-1]:.2f} ms")
+        names = {0: "安全", 1: "注意", 2: "危險", None: "未判定"}
+        fmt = lambda c: "、".join(f"{names.get(k, k)} {c[k]:,}" for k in sorted(c, key=lambda k: (k is None, k)))
+        print(f"模型判定 risk_pred：{fmt(pred_cnt)}")
+        print(f"平台規則 risk_rule：{fmt(rule_cnt)}")
     return 0 if errors == 0 else 1
 
 
