@@ -4,14 +4,24 @@ from pathlib import Path
 from collections import Counter
 from statistics import median
 
+import argparse
+
 ROOT = Path(__file__).resolve().parent.parent
-LOGS = ROOT / "logs"
-OUTPUT = ROOT / "dashboard" / "data.json"
+
+parser = argparse.ArgumentParser(description="由 UE 紀錄（ue_a.jsonl、ue_b.jsonl）產生面板的 data.json")
+parser.add_argument("--log-dir", type=Path, default=ROOT / "logs", help="UE 紀錄所在目錄")
+parser.add_argument("--output", type=Path, default=ROOT / "dashboard" / "data.json")
+args = parser.parse_args()
+LOGS = args.log_dir
+OUTPUT = args.output
 
 
 def analyze(node):
     path = LOGS / f"ue_{node.lower()}.jsonl"
     rows = []
+
+    if not path.exists():
+        raise SystemExit(f"找不到 {path}：請先用 ue/sumo_ue_sender.py 送資料，或以 --log-dir 指定紀錄目錄")
 
     with path.open("r", encoding="utf-8") as file:
         for line in file:

@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import time
 from pathlib import Path
 
@@ -22,8 +22,8 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=BASE_DIR / "test_logs" / "live_auto.json",
-        help="Output path for the latest UE JSON snapshot"
+        default=BASE_DIR / "dashboard" / "live.json",
+        help="Output path for the latest UE JSON snapshot（預設即面板讀取的 dashboard/live.json）"
     )
     args = parser.parse_args()
 
