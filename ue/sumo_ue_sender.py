@@ -153,8 +153,12 @@ def iter_traci(scenario: str, cfg: dict, inter: str):
     scen = cfg["sumo"]["scenarios"][scenario]
     sumocfg = config.path(scen["dir"], scen["config"])
     binary = _sumo_binary()
+    # 關掉 SSM：場景設定檔會把 SSM 寫進場景目錄的 ssm.xml.gz（訓練標籤的來源），
+    # 這裡只需要車輛狀態。不關的話每跑一次就覆蓋標籤檔，--limit 中途停下還會留下殘缺版本
+    # （115/11/22 發現 VM2 上 A 路口的 ssm.xml.gz 被蓋成 663 bytes）；路口 A 的 SSM 也要 4 GB 記憶體。
     traci.start([binary, "-c", str(sumocfg),
-                 "--step-length", str(cfg["sumo"]["step_length"])])
+                 "--step-length", str(cfg["sumo"]["step_length"]),
+                 "--device.ssm.probability", "0"])
     try:
         for t, batch in iter_states(traci, inter):
             if batch:

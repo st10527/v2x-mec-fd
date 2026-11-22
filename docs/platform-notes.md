@@ -485,6 +485,7 @@ A 是飽和路口，排隊車彼此都在 50 m 偵測範圍內，相遇數隨車
 | 115/11/04 | 重開機後 free5GC 停在 `inactive (dead)` | VM 被 unattended-upgrades 換成新核心，第一次開機時 gtp5g 模組還沒就緒，UPF 報 `open Gtp5g: operation not supported`；啟動器在 NF 結束時 `exit 0`，systemd 的 `Restart=on-failure` 當成正常結束而不重試 | 啟動器改為 NF 結束時 `exit 1`；兩台 VM 以 `apt-mark hold` 鎖定核心套件到決賽後 |
 | 115/11/04 | 兩台 VM 一起開機後 UE 一直 `Cell selection failure`（cell barred） | gNB 比 VM1 的 AMF 早起來，SCTP 被拒後 UERANSIM gNB **不重試**，行程也不結束，systemd 管不到 | 新增 `deploy/ue_watchdog.sh`＋`ueransim-watchdog.timer`：每 30 秒檢查 `uesimtun0`，沒有就重啟 gNB／UE。實測兩台同時重開機 109 秒恢復可展示 |
 | 115/11/12 | 學生回報 UE 經 `uesimtun0` 連 MEC 逾時；VM2 的 gNB 一個 GTP-U 封包都沒送出，UE 卻仍有 `uesimtun0`／10.60.0.x | 11/04 對 VM 做快照時 VM 暫停數秒，UE 與 gNB 間的模擬無線連線 `Radio link failure`，UE 退回 CM-IDLE；介面與 IP 仍在，看門狗只檢查介面所以沒發現，資料面斷了 8 天 | 看門狗改為經 `uesimtun0` 實際 ping VM1 的 N6 位址（172.16.6.10），不通就重啟 gNB／UE；以暫停 gNB 行程模擬，看門狗在下一輪（≤ 30 秒）偵測並恢復。**做完快照後務必確認經 5G 仍可通** |
+| 115/11/22 | VM2 上 `sumo/intersection_a/ssm.xml.gz` 只剩 663 bytes、B 路口也短了一截 | 場景設定檔指定 SSM 輸出到場景目錄的 `ssm.xml.gz`（訓練標籤來源）；`ue/sumo_ue_sender.py` 即時模式啟動 SUMO 時沒關 SSM，每跑一次就覆蓋，`--limit` 中途停下留下殘缺檔 | 即時模式加 `--device.ssm.probability 0`（只需車輛狀態）。附帶效果：路口 A 測試時段 20,000 筆從需 4 GB 記憶體降到 52 MB、約 2 分鐘。VM2 的檔案已由 VM1 還原 |
 | _待填_ | | | |
 
 卡關且自行無解時，平台團隊聯絡窗口：bytseng@smail.nchu.edu.tw（SPEC §12）。
