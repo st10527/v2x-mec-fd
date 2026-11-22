@@ -29,7 +29,7 @@ case "${1:-}" in
      esac ;;
 esac
 
-vm1_units() { echo "free5gc mec-app-a mec-app-b v2x-vm1-boot"; }
+vm1_units() { echo "free5gc mec-app-a mec-app-b v2x-vm1-boot v2x-dashboard"; }
 vm2_units() { echo "ueransim-gnb ueransim-ue ueransim-watchdog.timer"; }
 units() { [[ "$ROLE" == "vm1" ]] && vm1_units || vm2_units; }
 
@@ -138,9 +138,30 @@ TimeoutStartSec=600
 WantedBy=multi-user.target
 EOF
   ok "已寫入 v2x-vm1-boot.service"
+
+  # 展示面板（靜態網頁）：綁 N6 位址的 5010，經 Kong 的 /mec/dash 路由對外（deploy/kong_routes.sh）。
+  # 面板以相對路徑讀 data.json，網址必須是 /mec/dash/（結尾有斜線），否則會抓成 /mec/data.json 而 404。
+  sudo tee /etc/systemd/system/v2x-dashboard.service >/dev/null <<EOF
+[Unit]
+Description=V2X dashboard static files (Kong route /mec/dash)
+After=network-online.target v2x-n6-addr.service
+Wants=network-online.target v2x-n6-addr.service
+
+[Service]
+Type=simple
+User=$(id -un)
+ExecStart=/usr/bin/python3 -m http.server 5010 --bind 172.16.6.10 --directory ${ROOT}/dashboard
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  ok "已寫入 v2x-dashboard.service"
   bash "${ROOT}/deploy/run_all.sh" --stop >/dev/null 2>&1 || true   # 收掉 nohup 起的舊行程
   sudo systemctl daemon-reload
-  sudo systemctl enable mec-app-a mec-app-b v2x-vm1-boot >/dev/null 2>&1 || true
+  sudo systemctl enable mec-app-a mec-app-b v2x-vm1-boot v2x-dashboard >/dev/null 2>&1 || true
+  sudo systemctl restart v2x-dashboard
   sudo systemctl restart mec-app-a mec-app-b
   ok "MEC App A／B 已啟動"
   sudo systemctl restart v2x-vm1-boot
