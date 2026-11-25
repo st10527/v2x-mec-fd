@@ -1,0 +1,52 @@
+{
+ "A_test": {
+  "events": 336,
+  "soft_recall": 0.9791666666666666,
+  "soft_false_per_passage": 0.016795865633074936,
+  "strong_recall": 0.9791666666666666,
+  "strong_precision": 0.9211711711711712,
+  "rule_recall": 0.8065476190476191,
+  "tau": {
+   "caution": 0.99,
+   "danger": 0.99
+  }
+ },
+ "B_extra": {
+  "events": 1017,
+  "soft_recall": 0.9488692232055064,
+  "soft_false_per_passage": 0.3964148219441771,
+  "strong_recall": 0.8377581120943953,
+  "strong_precision": 0.4730318257956449,
+  "rule_recall": 0.3077679449360865,
+  "tau": {
+   "caution": 0.89,
+   "danger": 0.99
+  }
+ },
+ "A_model_on_B": {
+  "home": {
+   "events": 1017,
+   "soft_recall": 0.6833824975417896,
+   "soft_false_per_passage": 0.4488691049085659,
+   "strong_recall": 0.6833824975417896,
+   "strong_precision": 0.16836141778036026,
+   "tau": {
+    "caution": 0.99,
+    "danger": 0.99
+   }
+  },
+  "local": {
+   "events": 1017,
+   "soft_recall": 0.9233038348082596,
+   "soft_false_per_passage": 1.0896294513955727,
+   "strong_recall": 0.6833824975417896,
+   "strong_precision": 0.16836141778036026,
+   "tau": {
+    "caution": 0.75,
+    "danger": 0.99
+   }
+  }
+ },
+ "model_params": 48419,
+ "model_fp32_bytes": 193676
+}

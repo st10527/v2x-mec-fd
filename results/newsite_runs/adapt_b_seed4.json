@@ -1,0 +1,66 @@
+[
+ {
+  "start": "scratch",
+  "minutes": 5.0,
+  "n_train": 8154,
+  "danger_train": 172,
+  "tau": {
+   "caution": 0.19,
+   "danger": 0.99
+  },
+  "train_s": 20.5,
+  "events": 1017,
+  "soft_recall": 0.9714847590953786,
+  "soft_false_per_passage": 0.8842637151106834,
+  "strong_recall": 0.4464110127826942,
+  "strong_precision": 0.44405797101449274
+ },
+ {
+  "start": "donor:models/a/round_0.pt",
+  "minutes": 5.0,
+  "n_train": 8154,
+  "danger_train": 172,
+  "tau": {
+   "caution": 0.72,
+   "danger": 0.97
+  },
+  "train_s": 20.9,
+  "events": 1017,
+  "soft_recall": 0.9056047197640118,
+  "soft_false_per_passage": 0.41157362848893164,
+  "strong_recall": 0.6184857423795477,
+  "strong_precision": 0.42917847025495753
+ },
+ {
+  "start": "donor:models/tune/alpha0_lr0.001_a.pt",
+  "minutes": 5.0,
+  "n_train": 8154,
+  "danger_train": 172,
+  "tau": {
+   "caution": 0.44,
+   "danger": 0.98
+  },
+  "train_s": 20.0,
+  "events": 1017,
+  "soft_recall": 0.967551622418879,
+  "soft_false_per_passage": 1.111645813282002,
+  "strong_recall": 0.4385447394296952,
+  "strong_precision": 0.3476323119777159
+ },
+ {
+  "start": "donor:models/tune/alpha0.5_lr0.001_a.pt",
+  "minutes": 5.0,
+  "n_train": 8154,
+  "danger_train": 172,
+  "tau": {
+   "caution": 0.74,
+   "danger": 0.99
+  },
+  "train_s": 20.1,
+  "events": 1017,
+  "soft_recall": 0.9124877089478859,
+  "soft_false_per_passage": 0.644730510105871,
+  "strong_recall": 0.6597836774827925,
+  "strong_precision": 0.3650727650727651
+ }
+]
