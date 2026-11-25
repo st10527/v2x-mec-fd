@@ -239,9 +239,15 @@ registry:
 # ---------------------------------------------------------------------------
 logs:
   dir: "logs"
+  # 後半段（sim_time 起）為決賽面板新增（115/11/25）：即時路口畫面需要車輛位置與方向、
+  # 警示針對的對象與機率，協同開關需要知道這筆是哪一版權重判的。皆取自 MEC 收到的 BSM 與推論結果。
+  # risk_pred = -1 表示該車尚未累積滿 2 秒（model_ready=false），不是「安全」。
   inference: {file: "inference_{node}.jsonl",
               fields: [msg_id, ts_ue, ts_recv, ts_infer_done, ts_resp,
-                       vehicle_id, risk_pred, risk_rule, ttc_now]}
+                       vehicle_id, risk_pred, risk_rule, ttc_now,
+                       sim_time, x, y, speed, heading, lane_id,
+                       probs, conflict_with, rule_target, rel_dist,
+                       model_ready, model_weights]}
   fd_rounds: {file: "fd_rounds.jsonl",
               fields: [round, node, bytes_sent, local_f1, cross_f1, duration_s]}
   events:    {file: "events.jsonl",

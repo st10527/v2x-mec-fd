@@ -20,6 +20,7 @@ import base64
 import hashlib
 import logging
 import os
+import pathlib
 import time
 from contextlib import asynccontextmanager
 from typing import Any
@@ -100,6 +101,14 @@ class AppState:
         m.eval()
         self.model = m
         return self.model_path or "<random-init>"
+
+    def weights_name(self) -> str | None:
+        """目前推論用的權重檔名（不含 .pt），例如 current、round_0、round_5；尚無權重時為 None。
+
+        面板的協同開關以此顯示「現在是哪一版在判」。不用 self.round：它只在 /model/select
+        時更新，開機載入 current.pt（即協同後的權重）時仍為 0，會誤導。
+        """
+        return pathlib.Path(self.model_path).stem if self.model_path else None
 
     def maybe_hot_swap(self) -> bool:
         """SPEC §7.5：蒸餾完成後熱替換推論權重。
@@ -260,6 +269,18 @@ async def ingest_bsm(msg: dict[str, Any], request: Request) -> JSONResponse:
         risk_pred=risk_pred,
         risk_rule=risk_rule,
         ttc_now=None if ttc_now == float("inf") else ttc_now,
+        sim_time=ego.sim_time,
+        x=round(ego.x, 2),
+        y=round(ego.y, 2),
+        speed=round(ego.speed, 2),
+        heading=round(ego.heading, 1),
+        lane_id=ego.lane_id,
+        probs=probs,
+        conflict_with=conflict.partner_id,
+        rule_target=rule_target,
+        rel_dist=round(float(conflict.rel_dist), 2),
+        model_ready=bool(win.ready and s.model_path is not None),
+        model_weights=s.weights_name(),
     )
 
     s.msg_count += 1
@@ -348,6 +369,7 @@ async def fd_status() -> dict[str, Any]:
     return {
         "node_id": s.node_id,
         "round": s.round,
+        "model_weights": s.weights_name(),
         "ready": bool(s.model is not None and proxy_ok),
         "last_val_f1": s.last_val_f1,
         "proxy_hash": phash,
