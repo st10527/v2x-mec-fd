@@ -184,6 +184,15 @@ app = FastAPI(title="MEC V2X 危險預警 App", version="1.0", lifespan=lifespan
 # ---------------------------------------------------------------------------
 # 推論路由（Kong: /mec/v2x/{node}）
 # ---------------------------------------------------------------------------
+def _num_or_none(v: Any) -> float | None:
+    """UE 夾帶的數值欄位：不是有限數字就當作沒有（不讓壞資料擋掉 BSM）。"""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return round(f, 3) if f == f and abs(f) != float("inf") else None
+
+
 @app.post("/bsm")
 async def ingest_bsm(msg: dict[str, Any], request: Request) -> JSONResponse:
     """接收一筆 V2X 上行訊息，回傳風險告警（SPEC §5.1、§3.2）。
@@ -281,6 +290,9 @@ async def ingest_bsm(msg: dict[str, Any], request: Request) -> JSONResponse:
         rel_dist=round(float(conflict.rel_dist), 2),
         model_ready=bool(win.ready and s.model_path is not None),
         model_weights=s.weights_name(),
+        t_mec_ms=round((ts_resp - ts_recv) * 1000, 3),
+        t3_inference_ms=round((ts_infer_done - ts_window_ready) * 1000, 3),
+        ue_prev_rtt_ms=_num_or_none(msg.get("prev_rtt_ms")),
     )
 
     s.msg_count += 1

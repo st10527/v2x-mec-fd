@@ -86,9 +86,13 @@ def target_url(intersection: str, override: str | None, cfg: dict) -> str:
     return f"http://{gw}{route}"
 
 
-def send_one(client: httpx.Client, url: str, rec: dict) -> dict:
-    """送出一筆 BSM 並量測往返時間（SPEC §8.2 的 T1 與 T4）。"""
-    rec = dict(rec, msg_id=str(uuid.uuid4()), ts_ue=time.time())
+def send_one(client: httpx.Client, url: str, rec: dict, prev_rtt_ms: float | None = None) -> dict:
+    """送出一筆 BSM 並量測往返時間（SPEC §8.2 的 T1 與 T4）。
+
+    prev_rtt_ms：上一筆量到的端到端往返，夾帶給 MEC 記錄——往返只有 UE 量得到，
+    VM1 上的面板靠它顯示即時延遲（MEC 記在 inference log 的 ue_prev_rtt_ms）。
+    """
+    rec = dict(rec, msg_id=str(uuid.uuid4()), ts_ue=time.time(), prev_rtt_ms=prev_rtt_ms)
     t0 = rec["ts_ue"]
     try:
         r = client.post(f"{url}/bsm", json=rec)
@@ -212,7 +216,7 @@ def main(argv=None) -> int:
                     continue
                 for rec in batch:
                     rec.setdefault("intersection", inter)
-                    res = send_one(client, url, rec)
+                    res = send_one(client, url, rec, lat[-1] if lat else None)
                     fh.write(json.dumps(res, ensure_ascii=False) + "\n")
                     sent += 1
                     if "error" in res:
